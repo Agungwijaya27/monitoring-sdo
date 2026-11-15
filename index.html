@@ -54,13 +54,13 @@
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center font-extrabold text-lg shadow-sm">SDO</div>
       <div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <h1 class="font-bold text-slate-900 text-sm md:text-base">Dashboard Monitoring Progress Project</h1>
           <span id="syncStatusBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-            🟢 Tersimpan Otomatis (Anti-Reset)
+            ⚡ Terhubung Otomatis 2 Arah ke Google Sheets SDO
           </span>
         </div>
-        <p class="text-xs text-slate-500">Edit langsung di Web (data aman saat di-refresh) • Atau klik "Tarik Data Sheets" jika ingin memuat ulang dari Google Sheets</p>
+        <p class="text-xs text-slate-500">Auto-Save Realtime Aktif: Setiap ketikan di Web otomatis mengubah Google Sheets & sebaliknya tanpa perlu klik Simpan!</p>
       </div>
     </div>
 
@@ -81,14 +81,6 @@
           <option value="12/28">Sampai 12/28</option>
         </select>
       </div>
-
-      <button onclick="pullFromGoogleSheets(true)" class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg flex items-center gap-1.5 transition" title="Ambil data dari tabel Google Sheets">
-        🔄 Tarik Data Sheets
-      </button>
-
-      <button onclick="openSyncModal()" class="text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-        ⚙️ Sinkronisasi 2 Arah (Sheets)
-      </button>
 
       <button onclick="openAddProjectModal()" class="text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
         ➕ Tambah Project
@@ -164,22 +156,27 @@
   <!-- DATALIST PILIHAN BULAN FLEKSIBEL -->
   <datalist id="monthsDatalist"></datalist>
 
-  <!-- MODAL EDIT / TAMBAH PROJECT -->
-  <div id="editModal" class="no-export fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+  <!-- MODAL EDIT PROJECT (INSTANT AUTO-SAVE KE GOOGLE SHEETS TANPA KLIK SIMPAN) -->
+  <div id="editModal" onclick="if(event.target===this) closeEditModal()" class="no-export fixed inset-0 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
-      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+      <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
         <div>
-          <h3 id="modalTitle" class="font-bold text-base">Edit Progress Project</h3>
-          <p class="text-[11px] text-slate-300">Pilih bulan dari daftar atau ketik langsung dengan format MM/YY (contoh: 09/27, 12/27, 05/28)</p>
+          <div class="flex items-center gap-2">
+            <h3 id="modalTitle" class="font-bold text-base">Edit Progress Project</h3>
+            <span id="modalAutoSaveIndicator" class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
+              ✓ Tersimpan Otomatis ke Google Sheets
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-300">Langsung ketik perubahan di bawah ini — isi tabel Google Sheets & layar seluruh tim otomatis berubah!</p>
         </div>
-        <button onclick="closeEditModal()" class="text-slate-300 hover:text-white text-lg leading-none">&times;</button>
+        <button onclick="closeEditModal()" class="text-slate-300 hover:text-white text-2xl leading-none px-2">&times;</button>
       </div>
-      <form id="editForm" onsubmit="saveProjectForm(event)" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto text-xs">
+      <div id="editForm" oninput="triggerInstantAutoSave()" onchange="triggerInstantAutoSave()" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto text-xs">
         <input type="hidden" id="edit_id">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Nama Project</label>
-            <input type="text" id="edit_name" required class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <input type="text" id="edit_name" class="w-full border border-slate-300 rounded-lg px-3 py-2">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Posisi Panel</label>
@@ -200,7 +197,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Score (Kosongkan / '-' jika tidak ada)</label>
+            <label class="block font-semibold text-slate-700 mb-1">Score (Isi '-' jika tidak ada)</label>
             <input type="text" id="edit_score" placeholder="100%" class="w-full border border-slate-300 rounded-lg px-3 py-2">
           </div>
           <div>
@@ -293,100 +290,17 @@
           <button type="button" onclick="deleteCurrentProject()" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-semibold">
             🗑️ Hapus Project
           </button>
-          <div class="flex items-center gap-2">
-            <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold">Batal</button>
-            <button type="submit" class="px-5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-sm">💾 Simpan Perubahan</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL PENGATURAN GOOGLE SHEETS -->
-  <div id="syncModal" class="no-export fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden text-xs">
-      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
-        <h3 class="font-bold text-base">⚙️ Pengaturan Penyimpanan & Sinkronisasi Google Sheets</h3>
-        <button onclick="closeSyncModal()" class="text-slate-300 hover:text-white text-lg leading-none">&times;</button>
-      </div>
-      <div class="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
-        <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5">
-          <div class="font-bold text-sm">🛡️ Fitur Anti-Reset Saat Refresh Sudah Aktif!</div>
-          <p>Setiap perubahan yang Anda simpan lewat form di web Vercel ini <b>dikunci di memori browser Anda</b> sehingga <b>tidak akan hilang/balik lagi ketika halaman di-refresh</b>.</p>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-2">
-          <div class="font-bold text-sm">🔄 Ingin hasil edit di Vercel otomatis tertulis balik ke Google Sheets untuk dilihat tim?</div>
-          <p>Agar saat Anda mengedit di Vercel datanya ikut mengubah isi tabel Google Sheets secara otomatis (2 arah), lakukan 1 kali langkah ini:</p>
-          <ol class="list-decimal pl-4 space-y-1">
-            <li>Buka Google Sheets Anda, klik menu <b>Extensions &rarr; Apps Script</b>.</li>
-            <li>Klik tombol <b>"📋 Copy Kode Apps Script"</b> di bawah ini, lalu <b>Paste</b> ke Apps Script dan tekan <b>Ctrl+S</b>.</li>
-            <li>Klik tombol biru <b>Deploy &rarr; New deployment &rarr; pilih Web app &rarr; Who has access: Anyone &rarr; Deploy</b>.</li>
-            <li>Copy <b>Web App URL</b> yang muncul, lalu tempelkan ke kotak di bawah ini:</li>
-          </ol>
-          <div class="pt-1 flex gap-2">
-            <button type="button" onclick="copyAppsScriptCode()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold">
-              📋 Copy Kode Apps Script
-            </button>
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <label class="block font-bold text-slate-700">Web App URL Apps Script (Untuk Simpan Otomatis 2 Arah ke Google Sheets):</label>
-          <input type="url" id="appsScriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-slate-300 rounded-lg px-3 py-2">
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200">
-          <div class="flex gap-2">
-            <button type="button" onclick="exportBackupJSON()" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">💾 Download Backup (.json)</button>
-            <button type="button" onclick="resetToDefaultData()" class="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-semibold">Reset ke Data Awal</button>
-          </div>
-          <button type="button" onclick="saveSyncSettings()" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold">Simpan Pengaturan</button>
+          <button type="button" onclick="closeEditModal()" class="px-5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-sm">
+            ✓ Tutup (Sudah Otomatis Tersimpan ke Sheets)
+          </button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const DEFAULT_SHEET_ID = "1O-NnB2IQqqxuMuWWK-UZUWIP6o6Nx_10nMu1PGtXUdI";
-
-    const APPS_SCRIPT_CODE = `function doGet(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProjectData');
-  var rows = sheet.getDataRange().getValues();
-  var headers = rows[0];
-  var projects = [];
-  for (var i = 1; i < rows.length; i++) {
-    if (!rows[i][0]) continue;
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      obj[headers[j]] = String(rows[i][j] !== undefined && rows[i][j] !== null ? rows[i][j] : '-');
-    }
-    projects.push(obj);
-  }
-  return ContentService.createTextOutput(JSON.stringify({ status: 'ok', projects: projects }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProjectData');
-  var payload = JSON.parse(e.postData.contents);
-  if (payload.action === 'saveAll' && Array.isArray(payload.projects)) {
-    var headers = ['id','panel','name','status','score','waBadge','blueText','blueStart','blueEnd','orangeText','orangeStart','orangeEnd','greyText','greyStart','greyEnd','redText','redStart','redEnd','updatedBy','updatedAt'];
-    sheet.clearContents();
-    var values = [headers];
-    payload.projects.forEach(function(p) {
-      values.push(headers.map(function(h) { return p[h] || '-'; }));
-    });
-    sheet.getRange(1, 1, values.length, headers.length).setValues(values);
-  }
-  return ContentService.createTextOutput(JSON.stringify({ status: 'saved' }))
-    .setMimeType(ContentService.MimeType.JSON);
-}`;
-
-    function copyAppsScriptCode() {
-      navigator.clipboard.writeText(APPS_SCRIPT_CODE);
-      alert("Kode Apps Script berhasil di-copy! Silakan Paste di menu Extensions -> Apps Script pada Google Sheets Anda.");
-    }
+    // URL Resmi Google Apps Script milik Anda sudah tertanam permanen di sini!
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRO3zELvuu7mvFHJN-mQDJj8QyEFphpOcl5t3Xq5aKOp_bSIs-fAWehxFg7EAuptv5/exec";
 
     function generateMonthsRange(startStr, endStr) {
       const parseMY = s => {
@@ -425,23 +339,119 @@ function doPost(e) {
       { id: "brissl", panel: "right", name: "BRI SSL", status: "At Risk", score: "-", waBadge: "-", blueText: "Total Pekerjaan 12 Bulan", blueStart: "01/26", blueEnd: "01/27", orangeText: "-", orangeStart: "01/26", orangeEnd: "01/26", greyText: "-", greyStart: "01/26", greyEnd: "01/26", redText: "-", redStart: "01/26", redEnd: "01/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" }
     ];
 
-    let projects = JSON.parse(localStorage.getItem("sdo_projects_v4")) || DEFAULT_PROJECTS;
-    let hasLocalEdits = localStorage.getItem("sdo_has_local_edits") === "true";
-    let appsScriptUrl = localStorage.getItem("sdo_apps_script_url") || "";
+    let projects = JSON.parse(localStorage.getItem("sdo_projects_v7")) || DEFAULT_PROJECTS;
+    let isEditingModalOpen = false;
+    let isSavingToSheets = false;
+    let lastSaveCompletedTime = 0;
+    let autoSaveTimer = null;
 
-    function updateStatusBadge() {
+    function setBadge(text, color = "emerald") {
       const badge = document.getElementById("syncStatusBadge");
       if (!badge) return;
-      if (appsScriptUrl) {
+      if (color === "emerald") {
         badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
-        badge.innerText = "🟢 Sinkron 2 Arah Aktif (Web <-> Google Sheets)";
-      } else if (hasLocalEdits) {
+      } else if (color === "blue") {
         badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300";
-        badge.innerText = "🔒 Data Editan Web Tersimpan (Anti-Reset Saat Refresh)";
       } else {
-        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
-        badge.innerText = "🟢 Terhubung ke Google Sheets SDO";
+        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300";
       }
+      badge.innerText = text;
+    }
+
+    // Tarik otomatis dari Google Sheets Anda setiap 4 detik tanpa perlu klik apa pun
+    async function pullFromGoogleSheetsAuto() {
+      // Jangan timpa saat user sedang mengetik atau baru saja menyimpan dalam 4 detik terakhir
+      if (isEditingModalOpen || isSavingToSheets || (Date.now() - lastSaveCompletedTime < 4000)) return;
+      try {
+        const res = await fetch(APPS_SCRIPT_URL + "?t=" + Date.now(), { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.projects) && data.projects.length > 0) {
+            const incomingJSON = JSON.stringify(data.projects);
+            const currentJSON = JSON.stringify(projects);
+            if (incomingJSON !== currentJSON) {
+              projects = data.projects;
+              localStorage.setItem("sdo_projects_v7", incomingJSON);
+              renderAll();
+            }
+            setBadge("🟢 Live Sync Google Sheets Aktif (Otomatis 2 Arah)", "emerald");
+          }
+        }
+      } catch (err) {
+        console.warn("Auto-pull Sheets info:", err);
+      }
+    }
+
+    // Kirim perubahan langsung ke Google Sheets Anda secara otomatis
+    async function pushToGoogleSheetsAuto() {
+      isSavingToSheets = true;
+      const ind = document.getElementById("modalAutoSaveIndicator");
+      if (ind) ind.innerText = "⏳ Menyimpan ke Google Sheets...";
+      setBadge("⏳ Menyimpan otomatis ke Google Sheets...", "blue");
+
+      try {
+        await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "saveAll", projects: projects })
+        });
+        lastSaveCompletedTime = Date.now();
+        if (ind) ind.innerText = "✓ Tersimpan Otomatis di Google Sheets";
+        setBadge("🟢 Tersimpan Otomatis di Google Sheets SDO", "emerald");
+      } catch (err) {
+        if (ind) ind.innerText = "✓ Tersimpan di Browser";
+        setBadge("🟡 Tersimpan Lokal (Cek Koneksi)", "amber");
+      } finally {
+        isSavingToSheets = false;
+      }
+    }
+
+    // Dipanggil otomatis saat jari mengetik tanpa perlu klik tombol Simpan
+    function triggerInstantAutoSave() {
+      const id = document.getElementById("edit_id").value;
+      if (!id) return;
+      const nowStr = new Date().toLocaleString("id-ID");
+      const updatedObj = {
+        id,
+        name: document.getElementById("edit_name").value || "Project Baru",
+        panel: document.getElementById("edit_panel").value,
+        status: document.getElementById("edit_status").value,
+        score: document.getElementById("edit_score").value || "-",
+        waBadge: document.getElementById("edit_waBadge").value || "-",
+        blueText: document.getElementById("edit_blueText").value || "-",
+        blueStart: document.getElementById("edit_blueStart").value.trim(),
+        blueEnd: document.getElementById("edit_blueEnd").value.trim(),
+        orangeText: document.getElementById("edit_orangeText").value || "-",
+        orangeStart: document.getElementById("edit_orangeStart").value.trim(),
+        orangeEnd: document.getElementById("edit_orangeEnd").value.trim(),
+        greyText: document.getElementById("edit_greyText").value || "-",
+        greyStart: document.getElementById("edit_greyStart").value.trim(),
+        greyEnd: document.getElementById("edit_greyEnd").value.trim(),
+        redText: document.getElementById("edit_redText").value || "-",
+        redStart: document.getElementById("edit_redStart").value.trim(),
+        redEnd: document.getElementById("edit_redEnd").value.trim(),
+        updatedBy: document.getElementById("edit_updatedBy").value || "Team SDO",
+        updatedAt: nowStr
+      };
+
+      const existingIndex = projects.findIndex(x => x.id === id);
+      if (existingIndex >= 0) {
+        projects[existingIndex] = updatedObj;
+      } else {
+        projects.push(updatedObj);
+      }
+
+      localStorage.setItem("sdo_projects_v7", JSON.stringify(projects));
+      renderAll();
+
+      const ind = document.getElementById("modalAutoSaveIndicator");
+      if (ind) ind.innerText = "✍️ Mengetik...";
+
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => {
+        pushToGoogleSheetsAuto();
+      }, 400);
     }
 
     function ensureTimelineCoversAllProjects() {
@@ -556,7 +566,6 @@ function doPost(e) {
 
     function renderAll() {
       renderMonthHeaders();
-      updateStatusBadge();
       const showWa = document.getElementById("toggleWaBadge").checked;
       const leftList = projects.filter(p => p.panel === "left");
       const rightList = projects.filter(p => p.panel === "right");
@@ -568,6 +577,7 @@ function doPost(e) {
     function openEditModal(id) {
       const p = projects.find(x => x.id === id);
       if (!p) return;
+      isEditingModalOpen = true;
       document.getElementById("modalTitle").innerText = "Edit Project: " + p.name;
       document.getElementById("edit_id").value = p.id;
       document.getElementById("edit_name").value = p.name;
@@ -598,9 +608,11 @@ function doPost(e) {
     }
 
     function openAddProjectModal() {
+      isEditingModalOpen = true;
+      const newId = "proj_" + Date.now();
       document.getElementById("modalTitle").innerText = "Tambah Project Baru";
-      document.getElementById("edit_id").value = "proj_" + Date.now();
-      document.getElementById("edit_name").value = "";
+      document.getElementById("edit_id").value = newId;
+      document.getElementById("edit_name").value = "Project Baru";
       document.getElementById("edit_panel").value = "left";
       document.getElementById("edit_status").value = "On Track";
       document.getElementById("edit_score").value = "100%";
@@ -625,183 +637,24 @@ function doPost(e) {
 
       document.getElementById("editModal").classList.remove("hidden");
       document.getElementById("editModal").classList.add("flex");
+      triggerInstantAutoSave();
     }
 
     function closeEditModal() {
+      isEditingModalOpen = false;
       document.getElementById("editModal").classList.add("hidden");
       document.getElementById("editModal").classList.remove("flex");
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      pushToGoogleSheetsAuto();
     }
 
-    async function saveProjectForm(e) {
-      e.preventDefault();
+    async function deleteCurrentProject() {
       const id = document.getElementById("edit_id").value;
-      const nowStr = new Date().toLocaleString("id-ID");
-      const updatedObj = {
-        id,
-        name: document.getElementById("edit_name").value,
-        panel: document.getElementById("edit_panel").value,
-        status: document.getElementById("edit_status").value,
-        score: document.getElementById("edit_score").value || "-",
-        waBadge: document.getElementById("edit_waBadge").value || "-",
-        blueText: document.getElementById("edit_blueText").value || "-",
-        blueStart: document.getElementById("edit_blueStart").value.trim(),
-        blueEnd: document.getElementById("edit_blueEnd").value.trim(),
-        orangeText: document.getElementById("edit_orangeText").value || "-",
-        orangeStart: document.getElementById("edit_orangeStart").value.trim(),
-        orangeEnd: document.getElementById("edit_orangeEnd").value.trim(),
-        greyText: document.getElementById("edit_greyText").value || "-",
-        greyStart: document.getElementById("edit_greyStart").value.trim(),
-        greyEnd: document.getElementById("edit_greyEnd").value.trim(),
-        redText: document.getElementById("edit_redText").value || "-",
-        redStart: document.getElementById("edit_redStart").value.trim(),
-        redEnd: document.getElementById("edit_redEnd").value.trim(),
-        updatedBy: document.getElementById("edit_updatedBy").value || "Team SDO",
-        updatedAt: nowStr
-      };
-
-      const existingIndex = projects.findIndex(x => x.id === id);
-      if (existingIndex >= 0) {
-        projects[existingIndex] = updatedObj;
-      } else {
-        projects.push(updatedObj);
-      }
-
-      // Kunci perubahan lokal agar TIDAK tertimpa saat halaman di-refresh
-      hasLocalEdits = true;
-      localStorage.setItem("sdo_has_local_edits", "true");
-      localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
-      renderAll();
-      closeEditModal();
-
-      if (appsScriptUrl) {
-        try {
-          await fetch(appsScriptUrl, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "saveAll", projects })
-          });
-        } catch (err) {
-          console.warn("Gagal push ke Apps Script:", err);
-        }
-      }
-    }
-
-    function deleteCurrentProject() {
-      const id = document.getElementById("edit_id").value;
-      if (!confirm("Hapus baris project ini?")) return;
+      if (!confirm("Hapus baris project ini dari Web & Google Sheets?")) return;
       projects = projects.filter(x => x.id !== id);
-      hasLocalEdits = true;
-      localStorage.setItem("sdo_has_local_edits", "true");
-      localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
+      localStorage.setItem("sdo_projects_v7", JSON.stringify(projects));
       renderAll();
       closeEditModal();
-    }
-
-    function pullFromGoogleSheets(manualClick = false) {
-      if (manualClick && hasLocalEdits && !appsScriptUrl) {
-        if (!confirm("Menarik data dari Google Sheets akan menimpa editan yang baru Anda buat di Web (jika belum dimasukkan ke Google Sheets). Lanjutkan?")) {
-          return;
-        }
-      }
-      if (appsScriptUrl) {
-        fetch(appsScriptUrl)
-          .then(r => r.json())
-          .then(res => {
-            if (res && Array.isArray(res.projects) && res.projects.length > 0) {
-              projects = res.projects;
-              localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
-              renderAll();
-              if (manualClick) alert("Berhasil menarik data terbaru dari Google Sheets!");
-            }
-          })
-          .catch(() => fallbackGvizPull(manualClick));
-      } else {
-        fallbackGvizPull(manualClick);
-      }
-    }
-
-    function fallbackGvizPull(manualClick) {
-      window.handleGvizResponse = function(response) {
-        try {
-          if (!response || !response.table || !response.table.rows) return;
-          const rows = response.table.rows;
-          const loaded = [];
-          for (let i = 0; i < rows.length; i++) {
-            const c = rows[i].c;
-            if (!c || !c[0] || !c[0].v || c[0].v === "id") continue;
-            const val = idx => (c[idx] && c[idx].v !== null && c[idx].v !== undefined) ? String(c[idx].v) : "-";
-            loaded.push({
-              id: val(0), panel: val(1), name: val(2), status: val(3), score: val(4), waBadge: val(5),
-              blueText: val(6), blueStart: val(7), blueEnd: val(8),
-              orangeText: val(9), orangeStart: val(10), orangeEnd: val(11),
-              greyText: val(12), greyStart: val(13), greyEnd: val(14),
-              redText: val(15), redStart: val(16), redEnd: val(17),
-              updatedBy: val(18), updatedAt: val(19)
-            });
-          }
-          if (loaded.length > 0) {
-            projects = loaded;
-            hasLocalEdits = false;
-            localStorage.setItem("sdo_has_local_edits", "false");
-            localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
-            renderAll();
-            if (manualClick) alert("Data terbaru berhasil ditarik dari Google Sheets SDO!");
-          }
-        } catch (e) {
-          if (manualClick) alert("Gagal menarik dari Google Sheets. Pastikan akses Google Sheets sudah 'Anyone with the link'.");
-        }
-      };
-      const script = document.createElement("script");
-      script.src = `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleGvizResponse&sheet=ProjectData&_=${Date.now()}`;
-      document.body.appendChild(script);
-    }
-
-    function exportBackupJSON() {
-      const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "backup_monitoring_sdo.json";
-      a.click();
-    }
-
-    function openSyncModal() {
-      document.getElementById("appsScriptUrlInput").value = appsScriptUrl;
-      document.getElementById("syncModal").classList.remove("hidden");
-      document.getElementById("syncModal").classList.add("flex");
-    }
-
-    function closeSyncModal() {
-      document.getElementById("syncModal").classList.add("hidden");
-      document.getElementById("syncModal").classList.remove("flex");
-    }
-
-    function saveSyncSettings() {
-      appsScriptUrl = document.getElementById("appsScriptUrlInput").value.trim();
-      localStorage.setItem("sdo_apps_script_url", appsScriptUrl);
-      closeSyncModal();
-      updateStatusBadge();
-      if (appsScriptUrl) {
-        // Push current web edits directly to Google Sheets right away!
-        fetch(appsScriptUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "saveAll", projects })
-        }).then(() => {
-          alert("Web App URL tersimpan! Data yang Anda edit di Web sekarang otomatis tersinkron ke Google Sheets.");
-        });
-      }
-    }
-
-    function resetToDefaultData() {
-      if (!confirm("Kembalikan ke data awal?")) return;
-      projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
-      hasLocalEdits = false;
-      localStorage.setItem("sdo_has_local_edits", "false");
-      localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
-      renderAll();
-      closeSyncModal();
     }
 
     async function exportJPG(target) {
@@ -821,11 +674,10 @@ function doPost(e) {
       link.click();
     }
 
-    // Init: Hanya tarik otomatis dari Google Sheets jika belum ada editan lokal di Web (atau jika Apps Script 2 arah sudah aktif)
+    // Init & Auto-Sync langsung ke Google Sheets Anda setiap 4 detik tanpa klik apa pun!
     renderAll();
-    if (!hasLocalEdits || appsScriptUrl) {
-      pullFromGoogleSheets(false);
-    }
+    pullFromGoogleSheetsAuto();
+    setInterval(pullFromGoogleSheetsAuto, 4000);
   </script>
 </body>
 </html>
