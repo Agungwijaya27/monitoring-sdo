@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rancangan Visualisasi Monitoring Progress Project - SDO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: repeat(17, minmax(0, 1fr));
+      position: relative;
+    }
+    .grid-lines {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(17, minmax(0, 1fr));
+      pointer-events: none;
+      z-index: 0;
+    }
+    .grid-line {
+      border-left: 1px dashed #cbd5e1;
+      height: 100%;
+    }
+    .bar-item {
+      position: relative;
+      z-index: 10;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-weight: 700;
+      line-height: 1.25;
+      word-break: break-word;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 28px;
+    }
+    @media print {
+      .no-export { display: none !important; }
+    }
+  </style>
+</head>
+<body class="p-3 md:p-6 text-slate-800">
+
+  <!-- TOP CONTROL BAR (NO EXPORT) -->
+  <div id="toolbar" class="no-export max-w-[1650px] mx-auto mb-4 bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center font-extrabold text-lg shadow-sm">SDO</div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-slate-900 text-sm md:text-base">Dashboard Monitoring Progress Project</h1>
+          <span id="syncStatusBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+            🟢 Terhubung ke Google Sheets SDO
+          </span>
+        </div>
+        <p class="text-xs text-slate-500">Klik baris project mana saja untuk update angka/SIK • Data otomatis membaca & menyinkronkan ke Google Sheets</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg cursor-pointer select-none">
+        <input type="checkbox" id="toggleWaBadge" checked onchange="renderAll()" class="rounded text-blue-600">
+        <span>Label Update WA</span>
+      </label>
+
+      <button onclick="pullFromGoogleSheets(true)" class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+        🔄 Tarik Data Sheets Terbaru
+      </button>
+
+      <button onclick="openSyncModal()" class="text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+        ⚙️ Pengaturan / Link Sheets
+      </button>
+
+      <button onclick="openAddProjectModal()" class="text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+        ➕ Tambah Project
+      </button>
+
+      <div class="relative inline-block">
+        <button onclick="exportJPG('both')" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+          🖼️ Export Gabungan ke JPG (HD)
+        </button>
+      </div>
+
+      <button onclick="exportJPG('left')" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kiri saja">
+        📥 JPG Kiri
+      </button>
+      <button onclick="exportJPG('right')" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kanan saja">
+        📥 JPG Kanan
+      </button>
+    </div>
+  </div>
+
+  <!-- EXPORT AREA -->
+  <div id="captureArea" class="max-w-[1650px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-6">
+    
+    <!-- PANEL KIRI -->
+    <div id="leftPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative">
+      <div class="flex items-start justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
+        <h2 class="text-base md:text-lg font-extrabold text-slate-900 tracking-tight">Rancangan Visualisasi Monitoring Progress Project</h2>
+        <div class="text-[10px] leading-tight space-y-0.5 text-slate-600 shrink-0 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
+          <div class="font-bold text-slate-700 mb-0.5">Note:</div>
+          <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> <b>On Track</b> &rarr; Target tercapai</div>
+          <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> <b>At Risk</b> &rarr; Hampir tercapai/ada hambatan</div>
+          <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> <b>Off Track</b> &rarr; Jauh dari target</div>
+        </div>
+      </div>
+
+      <!-- Header Bulan Panel Kiri -->
+      <div class="grid grid-cols-[155px_1fr] gap-2 mb-2 items-center">
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Project / Status</div>
+        <div id="leftMonthsHeader" class="timeline-grid text-[10px] font-bold text-slate-600 text-center"></div>
+      </div>
+
+      <!-- Daftar Project Kiri -->
+      <div id="leftProjectsContainer" class="space-y-4"></div>
+    </div>
+
+    <!-- PANEL KANAN -->
+    <div id="rightPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative">
+      <div class="flex items-start justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
+        <h2 class="text-base md:text-lg font-extrabold text-slate-900 tracking-tight">Rancangan Visualisasi Monitoring Progress Project</h2>
+        <div class="flex items-start gap-2 shrink-0">
+          <div class="text-[10px] leading-tight space-y-0.5 text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
+            <div class="font-bold text-slate-700 mb-0.5">Note:</div>
+            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> <b>On Track</b> &rarr; Target tercapai</div>
+            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> <b>At Risk</b> &rarr; Hampir tercapai/ada hambatan</div>
+            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> <b>Off Track</b> &rarr; Jauh dari target</div>
+          </div>
+          <div class="text-[10px] leading-tight text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200 max-w-[135px]">
+            <b>Total resource Project / All total resource</b> = Score Billing
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Bulan Panel Kanan -->
+      <div class="grid grid-cols-[155px_1fr] gap-2 mb-2 items-center">
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Project / Status</div>
+        <div id="rightMonthsHeader" class="timeline-grid text-[10px] font-bold text-slate-600 text-center"></div>
+      </div>
+
+      <!-- Daftar Project Kanan -->
+      <div id="rightProjectsContainer" class="space-y-4"></div>
+    </div>
+
+  </div>
+
+  <!-- MODAL EDIT / TAMBAH PROJECT -->
+  <div id="editModal" class="no-export fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 id="modalTitle" class="font-bold text-base">Edit Progress Project</h3>
+        <button onclick="closeEditModal()" class="text-slate-300 hover:text-white text-lg leading-none">&times;</button>
+      </div>
+      <form id="editForm" onsubmit="saveProjectForm(event)" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto text-xs">
+        <input type="hidden" id="edit_id">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nama Project</label>
+            <input type="text" id="edit_name" required class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Posisi Panel</label>
+            <select id="edit_panel" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+              <option value="left">Panel Kiri</option>
+              <option value="right">Panel Kanan</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Status Indikator</label>
+            <select id="edit_status" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+              <option value="On Track">🟢 On Track</option>
+              <option value="At Risk">🟡 At Risk</option>
+              <option value="Off Track">🔴 Off Track</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Score (Kosongkan / '-' jika tidak ada)</label>
+            <input type="text" id="edit_score" placeholder="100%" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Badge Update WA / Catatan Singkat</label>
+            <input type="text" id="edit_waBadge" placeholder="Contoh: SIK 6 Done / Sirkular" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Diupdate Oleh</label>
+            <input type="text" id="edit_updatedBy" placeholder="Nama Anda (misal: Mutya / Agung)" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          </div>
+        </div>
+
+        <!-- Bar Biru -->
+        <div class="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2">
+          <div class="font-bold text-blue-900">🟦 Bar Biru (Total Fitur / Kontrak Pekerjaan)</div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="md:col-span-2">
+              <label class="block text-slate-600 mb-0.5">Teks Bar Biru</label>
+              <input type="text" id="edit_blueText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
+              <select id="edit_blueStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
+              <select id="edit_blueEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bar Oranye -->
+        <div class="p-3 rounded-xl bg-orange-50/70 border border-orange-200 space-y-2">
+          <div class="font-bold text-orange-900">🟧 Bar Oranye (SIK yang Sudah Rilis / Termin) — Isi '-' jika tidak ditampilkan</div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="md:col-span-2">
+              <label class="block text-slate-600 mb-0.5">Teks Bar Oranye</label>
+              <input type="text" id="edit_orangeText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
+              <select id="edit_orangeStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
+              <select id="edit_orangeEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bar Abu-abu -->
+        <div class="p-3 rounded-xl bg-slate-100 border border-slate-300 space-y-2">
+          <div class="font-bold text-slate-800">⬜ Bar Abu-Abu (Sisa Fitur Belum Rilis) — Isi '-' jika tidak ditampilkan</div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="md:col-span-2">
+              <label class="block text-slate-600 mb-0.5">Teks Bar Abu-Abu</label>
+              <input type="text" id="edit_greyText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
+              <select id="edit_greyStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
+              <select id="edit_greyEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bar Merah/Coral -->
+        <div class="p-3 rounded-xl bg-rose-50/70 border border-rose-200 space-y-2">
+          <div class="font-bold text-rose-900">🟥 Bar Merah Coral (Fitur Go Live / Terdeliver / Resource MD pisahkan dengan '|')</div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="md:col-span-2">
+              <label class="block text-slate-600 mb-0.5">Teks Bar Merah</label>
+              <input type="text" id="edit_redText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
+              <select id="edit_redStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
+              <select id="edit_redEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-200">
+          <button type="button" onclick="deleteCurrentProject()" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-semibold">
+            🗑️ Hapus Project
+          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-sm">💾 Simpan Perubahan</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL PENGATURAN GOOGLE SHEETS -->
+  <div id="syncModal" class="no-export fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-xl w-full overflow-hidden text-xs">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 class="font-bold text-base">🔗 Koneksi Database Google Sheets SDO</h3>
+        <button onclick="closeSyncModal()" class="text-slate-300 hover:text-white text-lg leading-none">&times;</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5">
+          <div class="font-bold text-sm">✅ Sudah Terhubung untuk Membaca Data Secara Langsung!</div>
+          <p>Dashboard ini sudah terhubung langsung ke file <b>Database Monitoring Progress Project - SDO</b> milik Anda. Setiap kali Anda atau tim mengubah angka di tabel Google Sheets lalu klik tombol <b>"🔄 Tarik Data Sheets Terbaru"</b> di atas, grafik otomatis berubah!</p>
+          <a href="https://docs.google.com/spreadsheets/d/1O-NnB2IQqqxuMuWWK-UZUWIP6o6Nx_10nMu1PGtXUdI/edit" target="_blank" class="inline-block mt-1 font-bold text-blue-700 underline">
+            👉 Buka Google Sheets Database Monitoring SDO
+          </a>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block font-bold text-slate-700">Opsional: Web App URL Apps Script (Jika ingin edit dari Web otomatis tersimpan balik ke Sheets)</label>
+          <input type="url" id="appsScriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+          <p class="text-[11px] text-slate-500">Jika dikosongkan, Anda tetap bisa mengupdate bersama tim langsung dari tabel Google Sheets, atau mengedit di web untuk keperluan Export JPG instan.</p>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+          <button onclick="resetToDefaultData()" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold">Reset ke Default</button>
+          <button onclick="saveSyncSettings()" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold">Simpan Pengaturan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MONTHS = ["12/25","01/26","02/26","03/26","04/26","05/26","06/26","07/26","08/26","09/26","10/26","11/26","12/26","01/27","02/27","03/27","04/27"];
+    const DEFAULT_SHEET_ID = "1O-NnB2IQqqxuMuWWK-UZUWIP6o6Nx_10nMu1PGtXUdI";
+
+    const DEFAULT_PROJECTS = [
+      { id: "mks", panel: "left", name: "MKS", status: "On Track", score: "100%", waBadge: "MKS 4 Done", blueText: "Total Fitur Pekerjaan 12 Bulan = 96 Fitur", blueStart: "12/25", blueEnd: "12/26", orangeText: "SIK Yang Sudah Rilis = 96 Fitur (SIK 1,2,3,4)", orangeStart: "02/26", orangeEnd: "10/26", greyText: "Sisa fitur yang belum rilis = 0 Fitur", greyStart: "11/26", greyEnd: "12/26", redText: "Fitur yang Sudah Go Live = 96 Fitur (SIK 1,2,3,4)", redStart: "02/26", redEnd: "10/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "nds", panel: "left", name: "NDS", status: "On Track", score: "100%", waBadge: "NDS 5 Sirkular", blueText: "Total Fitur Pekerjaan 12 Bulan = 120 Fitur", blueStart: "03/26", blueEnd: "04/27", orangeText: "SIK Yang Sudah Rilis = 50 Fitur (SIK 1,2,3,4,5 - SIK 5 Sirkular)", orangeStart: "04/26", orangeEnd: "11/26", greyText: "Sisa fitur yang belum rilis = 70 Fitur", greyStart: "12/26", greyEnd: "04/27", redText: "Fitur yang Sudah Go Live = 40 Fitur (SIK 1,2,3,4)", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "brimen", panel: "left", name: "BRIMEN", status: "On Track", score: "100%", waBadge: "Belum ada update", blueText: "Total Fitur Pekerjaan 12 Bulan = 100 Fitur", blueStart: "04/26", blueEnd: "04/27", orangeText: "SIK Yang Sudah Rilis = 46 Fitur (SIK 1,2)", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = 54 Fitur", greyStart: "10/26", greyEnd: "04/27", redText: "Fitur yang Go Live = 46 Fitur (SIK 1,2)", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "ppo", panel: "left", name: "Support Monitoring (PPO)", status: "On Track", score: "100%", waBadge: "SIK 6 Done (Tinggal Invoice)", blueText: "Total Fitur Pekerjaan 6 Bulan = 108 Report", blueStart: "06/26", blueEnd: "11/26", orangeText: "SIK Yang Sudah Rilis = 108 Report (SIK 1,2,3,4,5,6 Done)", orangeStart: "06/26", orangeEnd: "11/26", greyText: "Sisa fitur yang belum rilis = 0 Report (Tinggal Buat Invoice)", greyStart: "11/26", greyEnd: "11/26", redText: "Report yang sudah terdeliver = 108 Fitur (SIK 1,2,3,4,5,6)", redStart: "06/26", redEnd: "11/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "qfn", panel: "left", name: "QFN", status: "At Risk", score: "-", waBadge: "QFN 3 Belum", blueText: "Total Fitur Pekerjaan = Monitoring QFN", blueStart: "04/26", blueEnd: "03/27", orangeText: "SIK Yang Sudah Rilis = SIK 1, 2", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = QFN 3 Belum", greyStart: "10/26", greyEnd: "03/27", redText: "Fitur yang Go Live = SIK 1, 2", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "isg", panel: "left", name: "ISG", status: "On Track", score: "100%", waBadge: "-", blueText: "Total Fitur Pekerjaan 6 Bulan = N/A Report", blueStart: "04/26", blueEnd: "12/26", orangeText: "SIK Yang Sudah Rilis = 40 Report", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = N/A", greyStart: "10/26", greyEnd: "12/26", redText: "Fitur yang Go Live = 40 Report", redStart: "04/26", redEnd: "09/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
+      { id: "sinarmas", panel: "right", name: "Sinarmas", status: "On Track", score: "100%", waBadge: "-", blueText: "Total Fitur Pekerjaan Perbulan = 67 MD", blueStart: "12/25", blueEnd: "04/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "Lutfi: 23 MD | Satria: 22 MD | Sandi: 11 MD | Fadjri: 11 MD", redStart: "10/26", redEnd: "11/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
+      { id: "brispot", panel: "right", name: "Brispot", status: "On Track", score: "-", waBadge: "Brispot 2 Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 720 Fitur", blueStart: "01/26", blueEnd: "02/27", orangeText: "SIK Yang Sudah Rilis = 48 Fitur (SIK 1)", orangeStart: "01/26", orangeEnd: "02/26", greyText: "Sisa fitur yang belum rilis = 672 Fitur (Brispot 2 Belum)", orangeEnd2: "02/26", greyStart: "01/26", greyEnd: "02/27", redText: "Fitur yang Go Live = 48 Fitur (SIK 1)", redStart: "03/26", redEnd: "02/27", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "efs", panel: "right", name: "EFS", status: "At Risk", score: "-", waBadge: "EFS Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 170 CM", blueStart: "12/25", blueEnd: "01/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "Status: EFS Belum Rilis (170 CM)", greyStart: "12/25", greyEnd: "01/27", redText: "-", redStart: "12/25", redEnd: "12/25", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "inalum", panel: "right", name: "INALUM AI Developer", status: "On Track", score: "-", waBadge: "-", blueText: "Total Aplikasi Pekerjaan 3 Bulan", blueStart: "12/25", blueEnd: "03/26", orangeText: "Termin 1 sudah", orangeStart: "12/25", orangeEnd: "01/26", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "-", redStart: "12/25", redEnd: "12/25", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
+      { id: "brissl", panel: "right", name: "BRI SSL", status: "At Risk", score: "-", waBadge: "-", blueText: "Total Pekerjaan 12 Bulan", blueStart: "12/25", blueEnd: "01/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "-", redStart: "12/25", redEnd: "12/25", updatedBy: "System", updatedAt: "14/11/2026 13:14" }
+    ];
+
+    let projects = JSON.parse(localStorage.getItem("sdo_projects_v2")) || DEFAULT_PROJECTS;
+    let appsScriptUrl = localStorage.getItem("sdo_apps_script_url") || "";
+
+    function getMonthIdx(m) {
+      const idx = MONTHS.indexOf((m || "").trim());
+      return idx === -1 ? 0 : idx;
+    }
+
+    function renderMonthHeaders() {
+      const html = MONTHS.map(m => `<div class="py-1 border-l border-dashed border-slate-300">${m}</div>`).join("");
+      document.getElementById("leftMonthsHeader").innerHTML = html;
+      document.getElementById("rightMonthsHeader").innerHTML = html;
+
+      document.querySelectorAll(".month-select").forEach(sel => {
+        sel.innerHTML = MONTHS.map(m => `<option value="${m}">${m}</option>`).join("");
+      });
+    }
+
+    function makeGridLines() {
+      return `<div class="grid-lines">${MONTHS.map(() => `<div class="grid-line"></div>`).join("")}</div>`;
+    }
+
+    function createBarHTML(text, startMonth, endMonth, bgClass, textClass = "text-white") {
+      if (!text || text.trim() === "-" || text.trim() === "") return "";
+      const s = getMonthIdx(startMonth) + 1;
+      const e = Math.max(s, getMonthIdx(endMonth) + 1);
+      return `<div class="bar-item ${bgClass} ${textClass} text-[10px]" style="grid-column: ${s} / ${e + 1};">${text}</div>`;
+    }
+
+    function statusBadgeHTML(status) {
+      if (status === "On Track") return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-xs"></span>On Track</div>`;
+      if (status === "At Risk") return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full bg-amber-400 inline-block shadow-xs"></span>At Risk</div>`;
+      return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full bg-red-500 inline-block shadow-xs"></span>Off Track</div>`;
+    }
+
+    function renderProjectRow(p, showWaBadge) {
+      const hasScore = p.score && p.score !== "-";
+      const hasWa = showWaBadge && p.waBadge && p.waBadge !== "-";
+
+      // Check if orange and grey can share a row or stack cleanly
+      const oValid = p.orangeText && p.orangeText !== "-";
+      const gValid = p.greyText && p.greyText !== "-";
+      let middleRowHTML = "";
+
+      if (oValid && gValid) {
+        const oEnd = getMonthIdx(p.orangeEnd);
+        const gStart = getMonthIdx(p.greyStart);
+        if (gStart > oEnd) {
+          middleRowHTML = `<div class="timeline-grid gap-y-1">${createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900")}${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>`;
+        } else {
+          middleRowHTML = `
+            <div class="timeline-grid">${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>
+            <div class="timeline-grid">${createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900")}</div>
+          `;
+        }
+      } else if (oValid) {
+        middleRowHTML = `<div class="timeline-grid">${createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900")}</div>`;
+      } else if (gValid) {
+        middleRowHTML = `<div class="timeline-grid">${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>`;
+      }
+
+      // Red bar or Sinarmas multi-person cards
+      let redRowHTML = "";
+      if (p.redText && p.redText !== "-") {
+        if (p.redText.includes("|")) {
+          const items = p.redText.split("|").map(x => x.trim()).filter(Boolean);
+          const s = getMonthIdx(p.redStart) + 1;
+          const e = Math.max(s, getMonthIdx(p.redEnd) + 1);
+          redRowHTML = `<div class="timeline-grid"><div style="grid-column: ${s} / ${e + 1};" class="space-y-1 z-10">${items.map(item => `<div class="bg-[#ff5a5f] text-slate-900 font-bold text-[10px] px-2 py-1 rounded shadow-xs text-center">${item}</div>`).join("")}</div></div>`;
+        } else {
+          redRowHTML = `<div class="timeline-grid">${createBarHTML(p.redText, p.redStart, p.redEnd, "bg-[#ff5a5f]", "text-slate-900")}</div>`;
+        }
+      }
+
+      return `
+        <div onclick="openEditModal('${p.id}')" class="group grid grid-cols-[155px_1fr] gap-2 items-start p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition border border-transparent hover:border-blue-200">
+          <div class="pr-2 space-y-1">
+            <div class="font-extrabold text-xs text-slate-900 group-hover:text-blue-700 leading-snug">${p.name}</div>
+            ${statusBadgeHTML(p.status)}
+            ${hasScore ? `<div class="text-[11px] font-semibold text-slate-600">Score : ${p.score}</div>` : ""}
+            ${hasWa ? `<div class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">${p.waBadge}</div>` : ""}
+          </div>
+          <div class="relative py-1 space-y-1.5 min-h-[70px]">
+            ${makeGridLines()}
+            <div class="timeline-grid">${createBarHTML(p.blueText, p.blueStart, p.blueEnd, "bg-[#004aad]", "text-white text-[11px]")}</div>
+            ${middleRowHTML}
+            ${redRowHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAll() {
+      const showWa = document.getElementById("toggleWaBadge").checked;
+      const leftList = projects.filter(p => p.panel === "left");
+      const rightList = projects.filter(p => p.panel === "right");
+
+      document.getElementById("leftProjectsContainer").innerHTML = leftList.map(p => renderProjectRow(p, showWa)).join("");
+      document.getElementById("rightProjectsContainer").innerHTML = rightList.map(p => renderProjectRow(p, showWa)).join("");
+    }
+
+    function openEditModal(id) {
+      const p = projects.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById("modalTitle").innerText = "Edit Project: " + p.name;
+      document.getElementById("edit_id").value = p.id;
+      document.getElementById("edit_name").value = p.name;
+      document.getElementById("edit_panel").value = p.panel;
+      document.getElementById("edit_status").value = p.status;
+      document.getElementById("edit_score").value = p.score || "-";
+      document.getElementById("edit_waBadge").value = p.waBadge || "-";
+      document.getElementById("edit_updatedBy").value = p.updatedBy || "";
+
+      document.getElementById("edit_blueText").value = p.blueText || "-";
+      document.getElementById("edit_blueStart").value = MONTHS.includes(p.blueStart) ? p.blueStart : "12/25";
+      document.getElementById("edit_blueEnd").value = MONTHS.includes(p.blueEnd) ? p.blueEnd : "12/26";
+
+      document.getElementById("edit_orangeText").value = p.orangeText || "-";
+      document.getElementById("edit_orangeStart").value = MONTHS.includes(p.orangeStart) ? p.orangeStart : "12/25";
+      document.getElementById("edit_orangeEnd").value = MONTHS.includes(p.orangeEnd) ? p.orangeEnd : "12/26";
+
+      document.getElementById("edit_greyText").value = p.greyText || "-";
+      document.getElementById("edit_greyStart").value = MONTHS.includes(p.greyStart) ? p.greyStart : "12/25";
+      document.getElementById("edit_greyEnd").value = MONTHS.includes(p.greyEnd) ? p.greyEnd : "12/26";
+
+      document.getElementById("edit_redText").value = p.redText || "-";
+      document.getElementById("edit_redStart").value = MONTHS.includes(p.redStart) ? p.redStart : "12/25";
+      document.getElementById("edit_redEnd").value = MONTHS.includes(p.redEnd) ? p.redEnd : "12/26";
+
+      document.getElementById("editModal").classList.remove("hidden");
+      document.getElementById("editModal").classList.add("flex");
+    }
+
+    function openAddProjectModal() {
+      document.getElementById("modalTitle").innerText = "Tambah Project Baru";
+      document.getElementById("edit_id").value = "proj_" + Date.now();
+      document.getElementById("edit_name").value = "";
+      document.getElementById("edit_panel").value = "left";
+      document.getElementById("edit_status").value = "On Track";
+      document.getElementById("edit_score").value = "100%";
+      document.getElementById("edit_waBadge").value = "-";
+      document.getElementById("edit_updatedBy").value = "";
+
+      document.getElementById("edit_blueText").value = "Total Fitur Pekerjaan 12 Bulan = 100 Fitur";
+      document.getElementById("edit_blueStart").value = "01/26";
+      document.getElementById("edit_blueEnd").value = "12/26";
+
+      document.getElementById("edit_orangeText").value = "SIK Yang Sudah Rilis = 50 Fitur (SIK 1,2)";
+      document.getElementById("edit_orangeStart").value = "01/26";
+      document.getElementById("edit_orangeEnd").value = "06/26";
+
+      document.getElementById("edit_greyText").value = "Sisa fitur yang belum rilis = 50 Fitur";
+      document.getElementById("edit_greyStart").value = "07/26";
+      document.getElementById("edit_greyEnd").value = "12/26";
+
+      document.getElementById("edit_redText").value = "Fitur yang Go Live = 50 Fitur (SIK 1,2)";
+      document.getElementById("edit_redStart").value = "01/26";
+      document.getElementById("edit_redEnd").value = "06/26";
+
+      document.getElementById("editModal").classList.remove("hidden");
+      document.getElementById("editModal").classList.add("flex");
+    }
+
+    function closeEditModal() {
+      document.getElementById("editModal").classList.add("hidden");
+      document.getElementById("editModal").classList.remove("flex");
+    }
+
+    async function saveProjectForm(e) {
+      e.preventDefault();
+      const id = document.getElementById("edit_id").value;
+      const nowStr = new Date().toLocaleString("id-ID");
+      const updatedObj = {
+        id,
+        name: document.getElementById("edit_name").value,
+        panel: document.getElementById("edit_panel").value,
+        status: document.getElementById("edit_status").value,
+        score: document.getElementById("edit_score").value || "-",
+        waBadge: document.getElementById("edit_waBadge").value || "-",
+        blueText: document.getElementById("edit_blueText").value || "-",
+        blueStart: document.getElementById("edit_blueStart").value,
+        blueEnd: document.getElementById("edit_blueEnd").value,
+        orangeText: document.getElementById("edit_orangeText").value || "-",
+        orangeStart: document.getElementById("edit_orangeStart").value,
+        orangeEnd: document.getElementById("edit_orangeEnd").value,
+        greyText: document.getElementById("edit_greyText").value || "-",
+        greyStart: document.getElementById("edit_greyStart").value,
+        greyEnd: document.getElementById("edit_greyEnd").value,
+        redText: document.getElementById("edit_redText").value || "-",
+        redStart: document.getElementById("edit_redStart").value,
+        redEnd: document.getElementById("edit_redEnd").value,
+        updatedBy: document.getElementById("edit_updatedBy").value || "Team SDO",
+        updatedAt: nowStr
+      };
+
+      const existingIndex = projects.findIndex(x => x.id === id);
+      if (existingIndex >= 0) {
+        projects[existingIndex] = updatedObj;
+      } else {
+        projects.push(updatedObj);
+      }
+
+      localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+      renderAll();
+      closeEditModal();
+
+      if (appsScriptUrl) {
+        try {
+          await fetch(appsScriptUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "saveAll", projects })
+          });
+        } catch (err) {
+          console.warn("Gagal push ke Apps Script:", err);
+        }
+      }
+    }
+
+    function deleteCurrentProject() {
+      const id = document.getElementById("edit_id").value;
+      if (!confirm("Hapus baris project ini?")) return;
+      projects = projects.filter(x => x.id !== id);
+      localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+      renderAll();
+      closeEditModal();
+    }
+
+    // Pull directly from Google Sheets via JSONP gviz or Apps Script URL
+    function pullFromGoogleSheets(showAlert = false) {
+      if (appsScriptUrl) {
+        fetch(appsScriptUrl)
+          .then(r => r.json())
+          .then(res => {
+            if (res && Array.isArray(res.projects) && res.projects.length > 0) {
+              projects = res.projects;
+              localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+              renderAll();
+              if (showAlert) alert("Berhasil menarik data terbaru dari Google Sheets!");
+            }
+          })
+          .catch(() => fallbackGvizPull(showAlert));
+      } else {
+        fallbackGvizPull(showAlert);
+      }
+    }
+
+    function fallbackGvizPull(showAlert) {
+      window.handleGvizResponse = function(response) {
+        try {
+          if (!response || !response.table || !response.table.rows) return;
+          const rows = response.table.rows;
+          const loaded = [];
+          for (let i = 0; i < rows.length; i++) {
+            const c = rows[i].c;
+            if (!c || !c[0] || !c[0].v || c[0].v === "id") continue;
+            const val = idx => (c[idx] && c[idx].v !== null && c[idx].v !== undefined) ? String(c[idx].v) : "-";
+            loaded.push({
+              id: val(0), panel: val(1), name: val(2), status: val(3), score: val(4), waBadge: val(5),
+              blueText: val(6), blueStart: val(7), blueEnd: val(8),
+              orangeText: val(9), orangeStart: val(10), orangeEnd: val(11),
+              greyText: val(12), greyStart: val(13), greyEnd: val(14),
+              redText: val(15), redStart: val(16), redEnd: val(17),
+              updatedBy: val(18), updatedAt: val(19)
+            });
+          }
+          if (loaded.length > 0) {
+            projects = loaded;
+            localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+            renderAll();
+            if (showAlert) alert("Data terbaru berhasil ditarik dari Google Sheets SDO!");
+          }
+        } catch (e) {
+          if (showAlert) alert("Menggunakan data lokal terbaru. Pastikan akses Google Sheets sudah 'Anyone with the link can view'.");
+        }
+      };
+      const script = document.createElement("script");
+      script.src = `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleGvizResponse&sheet=ProjectData&_=${Date.now()}`;
+      document.body.appendChild(script);
+    }
+
+    function openSyncModal() {
+      document.getElementById("appsScriptUrlInput").value = appsScriptUrl;
+      document.getElementById("syncModal").classList.remove("hidden");
+      document.getElementById("syncModal").classList.add("flex");
+    }
+
+    function closeSyncModal() {
+      document.getElementById("syncModal").classList.add("hidden");
+      document.getElementById("syncModal").classList.remove("flex");
+    }
+
+    function saveSyncSettings() {
+      appsScriptUrl = document.getElementById("appsScriptUrlInput").value.trim();
+      localStorage.setItem("sdo_apps_script_url", appsScriptUrl);
+      closeSyncModal();
+      pullFromGoogleSheets(true);
+    }
+
+    function resetToDefaultData() {
+      if (!confirm("Kembalikan ke data awal sesuai laporan WhatsApp Mutya?")) return;
+      projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+      localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+      renderAll();
+      closeSyncModal();
+    }
+
+    async function exportJPG(target) {
+      let el = document.getElementById("captureArea");
+      let filename = "Monitoring_Progress_Project_SDO_Full.jpg";
+      if (target === "left") {
+        el = document.getElementById("leftPanelCard");
+        filename = "Monitoring_Progress_Project_SDO_Kiri.jpg";
+      } else if (target === "right") {
+        el = document.getElementById("rightPanelCard");
+        filename = "Monitoring_Progress_Project_SDO_Kanan.jpg";
+      }
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#f1f5f9", useCORS: true });
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = canvas.toDataURL("image/jpeg", 0.95);
+      link.click();
+    }
+
+    // Init
+    renderMonthHeaders();
+    renderAll();
+    pullFromGoogleSheets(false);
+  </script>
+</body>
+</html>
