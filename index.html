@@ -8,17 +8,18 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root { --cols: 20; }
     body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
     .timeline-grid {
       display: grid;
-      grid-template-columns: repeat(17, minmax(0, 1fr));
+      grid-template-columns: repeat(var(--cols), minmax(34px, 1fr));
       position: relative;
     }
     .grid-lines {
       position: absolute;
       inset: 0;
       display: grid;
-      grid-template-columns: repeat(17, minmax(0, 1fr));
+      grid-template-columns: repeat(var(--cols), minmax(34px, 1fr));
       pointer-events: none;
       z-index: 0;
     }
@@ -49,17 +50,17 @@
 <body class="p-3 md:p-6 text-slate-800">
 
   <!-- TOP CONTROL BAR (NO EXPORT) -->
-  <div id="toolbar" class="no-export max-w-[1650px] mx-auto mb-4 bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
+  <div id="toolbar" class="no-export max-w-[1720px] mx-auto mb-4 bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center font-extrabold text-lg shadow-sm">SDO</div>
       <div>
         <div class="flex items-center gap-2">
           <h1 class="font-bold text-slate-900 text-sm md:text-base">Dashboard Monitoring Progress Project</h1>
           <span id="syncStatusBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-            🟢 Terhubung ke Google Sheets SDO
+            🟢 Tersimpan Otomatis (Anti-Reset)
           </span>
         </div>
-        <p class="text-xs text-slate-500">Klik baris project mana saja untuk update angka/SIK • Data otomatis membaca & menyinkronkan ke Google Sheets</p>
+        <p class="text-xs text-slate-500">Edit langsung di Web (data aman saat di-refresh) • Atau klik "Tarik Data Sheets" jika ingin memuat ulang dari Google Sheets</p>
       </div>
     </div>
 
@@ -69,23 +70,33 @@
         <span>Label Update WA</span>
       </label>
 
-      <button onclick="pullFromGoogleSheets(true)" class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-        🔄 Tarik Data Sheets Terbaru
+      <div class="flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 rounded-lg text-xs">
+        <span class="font-semibold text-indigo-900">Batas Timeline:</span>
+        <select id="maxMonthFilter" onchange="updateMaxTimelineMonth(this.value)" class="bg-white border border-indigo-300 rounded px-1.5 py-0.5 font-bold text-indigo-800">
+          <option value="04/27">Sampai 04/27</option>
+          <option value="09/27">Sampai 09/27</option>
+          <option value="10/27">Sampai 10/27</option>
+          <option value="12/27" selected>Sampai 12/27</option>
+          <option value="06/28">Sampai 06/28</option>
+          <option value="12/28">Sampai 12/28</option>
+        </select>
+      </div>
+
+      <button onclick="pullFromGoogleSheets(true)" class="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg flex items-center gap-1.5 transition" title="Ambil data dari tabel Google Sheets">
+        🔄 Tarik Data Sheets
       </button>
 
       <button onclick="openSyncModal()" class="text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
-        ⚙️ Pengaturan / Link Sheets
+        ⚙️ Sinkronisasi 2 Arah (Sheets)
       </button>
 
       <button onclick="openAddProjectModal()" class="text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
         ➕ Tambah Project
       </button>
 
-      <div class="relative inline-block">
-        <button onclick="exportJPG('both')" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
-          🖼️ Export Gabungan ke JPG (HD)
-        </button>
-      </div>
+      <button onclick="exportJPG('both')" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+        🖼️ Export Gabungan JPG
+      </button>
 
       <button onclick="exportJPG('left')" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kiri saja">
         📥 JPG Kiri
@@ -97,10 +108,10 @@
   </div>
 
   <!-- EXPORT AREA -->
-  <div id="captureArea" class="max-w-[1650px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-6">
+  <div id="captureArea" class="max-w-[1720px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-6">
     
     <!-- PANEL KIRI -->
-    <div id="leftPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative">
+    <div id="leftPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative overflow-x-auto">
       <div class="flex items-start justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
         <h2 class="text-base md:text-lg font-extrabold text-slate-900 tracking-tight">Rancangan Visualisasi Monitoring Progress Project</h2>
         <div class="text-[10px] leading-tight space-y-0.5 text-slate-600 shrink-0 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
@@ -112,9 +123,9 @@
       </div>
 
       <!-- Header Bulan Panel Kiri -->
-      <div class="grid grid-cols-[155px_1fr] gap-2 mb-2 items-center">
+      <div class="grid grid-cols-[150px_1fr] gap-2 mb-2 items-center">
         <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Project / Status</div>
-        <div id="leftMonthsHeader" class="timeline-grid text-[10px] font-bold text-slate-600 text-center"></div>
+        <div id="leftMonthsHeader" class="timeline-grid text-[9.5px] font-bold text-slate-600 text-center"></div>
       </div>
 
       <!-- Daftar Project Kiri -->
@@ -122,7 +133,7 @@
     </div>
 
     <!-- PANEL KANAN -->
-    <div id="rightPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative">
+    <div id="rightPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative overflow-x-auto">
       <div class="flex items-start justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
         <h2 class="text-base md:text-lg font-extrabold text-slate-900 tracking-tight">Rancangan Visualisasi Monitoring Progress Project</h2>
         <div class="flex items-start gap-2 shrink-0">
@@ -139,9 +150,9 @@
       </div>
 
       <!-- Header Bulan Panel Kanan -->
-      <div class="grid grid-cols-[155px_1fr] gap-2 mb-2 items-center">
+      <div class="grid grid-cols-[150px_1fr] gap-2 mb-2 items-center">
         <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Project / Status</div>
-        <div id="rightMonthsHeader" class="timeline-grid text-[10px] font-bold text-slate-600 text-center"></div>
+        <div id="rightMonthsHeader" class="timeline-grid text-[9.5px] font-bold text-slate-600 text-center"></div>
       </div>
 
       <!-- Daftar Project Kanan -->
@@ -150,11 +161,17 @@
 
   </div>
 
+  <!-- DATALIST PILIHAN BULAN FLEKSIBEL -->
+  <datalist id="monthsDatalist"></datalist>
+
   <!-- MODAL EDIT / TAMBAH PROJECT -->
   <div id="editModal" class="no-export fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
       <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
-        <h3 id="modalTitle" class="font-bold text-base">Edit Progress Project</h3>
+        <div>
+          <h3 id="modalTitle" class="font-bold text-base">Edit Progress Project</h3>
+          <p class="text-[11px] text-slate-300">Pilih bulan dari daftar atau ketik langsung dengan format MM/YY (contoh: 09/27, 12/27, 05/28)</p>
+        </div>
         <button onclick="closeEditModal()" class="text-slate-300 hover:text-white text-lg leading-none">&times;</button>
       </div>
       <form id="editForm" onsubmit="saveProjectForm(event)" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto text-xs">
@@ -205,12 +222,12 @@
               <input type="text" id="edit_blueText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
-              <select id="edit_blueStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_blueStart" placeholder="01/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
-              <select id="edit_blueEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_blueEnd" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
           </div>
         </div>
@@ -224,12 +241,12 @@
               <input type="text" id="edit_orangeText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
-              <select id="edit_orangeStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_orangeStart" placeholder="02/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
-              <select id="edit_orangeEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_orangeEnd" placeholder="10/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
           </div>
         </div>
@@ -243,12 +260,12 @@
               <input type="text" id="edit_greyText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
-              <select id="edit_greyStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_greyStart" placeholder="11/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
-              <select id="edit_greyEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_greyEnd" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
           </div>
         </div>
@@ -262,12 +279,12 @@
               <input type="text" id="edit_redText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai</label>
-              <select id="edit_redStart" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_redStart" placeholder="02/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
             <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai</label>
-              <select id="edit_redEnd" class="month-select w-full border border-slate-300 rounded px-2 py-1.5 bg-white"></select>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" id="edit_redEnd" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
             </div>
           </div>
         </div>
@@ -287,37 +304,112 @@
 
   <!-- MODAL PENGATURAN GOOGLE SHEETS -->
   <div id="syncModal" class="no-export fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-xl w-full overflow-hidden text-xs">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden text-xs">
       <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
-        <h3 class="font-bold text-base">🔗 Koneksi Database Google Sheets SDO</h3>
+        <h3 class="font-bold text-base">⚙️ Pengaturan Penyimpanan & Sinkronisasi Google Sheets</h3>
         <button onclick="closeSyncModal()" class="text-slate-300 hover:text-white text-lg leading-none">&times;</button>
       </div>
-      <div class="p-5 space-y-4">
+      <div class="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
         <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5">
-          <div class="font-bold text-sm">✅ Sudah Terhubung untuk Membaca Data Secara Langsung!</div>
-          <p>Dashboard ini sudah terhubung langsung ke file <b>Database Monitoring Progress Project - SDO</b> milik Anda. Setiap kali Anda atau tim mengubah angka di tabel Google Sheets lalu klik tombol <b>"🔄 Tarik Data Sheets Terbaru"</b> di atas, grafik otomatis berubah!</p>
-          <a href="https://docs.google.com/spreadsheets/d/1O-NnB2IQqqxuMuWWK-UZUWIP6o6Nx_10nMu1PGtXUdI/edit" target="_blank" class="inline-block mt-1 font-bold text-blue-700 underline">
-            👉 Buka Google Sheets Database Monitoring SDO
-          </a>
+          <div class="font-bold text-sm">🛡️ Fitur Anti-Reset Saat Refresh Sudah Aktif!</div>
+          <p>Setiap perubahan yang Anda simpan lewat form di web Vercel ini <b>dikunci di memori browser Anda</b> sehingga <b>tidak akan hilang/balik lagi ketika halaman di-refresh</b>.</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-2">
+          <div class="font-bold text-sm">🔄 Ingin hasil edit di Vercel otomatis tertulis balik ke Google Sheets untuk dilihat tim?</div>
+          <p>Agar saat Anda mengedit di Vercel datanya ikut mengubah isi tabel Google Sheets secara otomatis (2 arah), lakukan 1 kali langkah ini:</p>
+          <ol class="list-decimal pl-4 space-y-1">
+            <li>Buka Google Sheets Anda, klik menu <b>Extensions &rarr; Apps Script</b>.</li>
+            <li>Klik tombol <b>"📋 Copy Kode Apps Script"</b> di bawah ini, lalu <b>Paste</b> ke Apps Script dan tekan <b>Ctrl+S</b>.</li>
+            <li>Klik tombol biru <b>Deploy &rarr; New deployment &rarr; pilih Web app &rarr; Who has access: Anyone &rarr; Deploy</b>.</li>
+            <li>Copy <b>Web App URL</b> yang muncul, lalu tempelkan ke kotak di bawah ini:</li>
+          </ol>
+          <div class="pt-1 flex gap-2">
+            <button type="button" onclick="copyAppsScriptCode()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold">
+              📋 Copy Kode Apps Script
+            </button>
+          </div>
         </div>
 
         <div class="space-y-1.5">
-          <label class="block font-bold text-slate-700">Opsional: Web App URL Apps Script (Jika ingin edit dari Web otomatis tersimpan balik ke Sheets)</label>
+          <label class="block font-bold text-slate-700">Web App URL Apps Script (Untuk Simpan Otomatis 2 Arah ke Google Sheets):</label>
           <input type="url" id="appsScriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-slate-300 rounded-lg px-3 py-2">
-          <p class="text-[11px] text-slate-500">Jika dikosongkan, Anda tetap bisa mengupdate bersama tim langsung dari tabel Google Sheets, atau mengedit di web untuk keperluan Export JPG instan.</p>
         </div>
 
-        <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
-          <button onclick="resetToDefaultData()" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold">Reset ke Default</button>
-          <button onclick="saveSyncSettings()" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold">Simpan Pengaturan</button>
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200">
+          <div class="flex gap-2">
+            <button type="button" onclick="exportBackupJSON()" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">💾 Download Backup (.json)</button>
+            <button type="button" onclick="resetToDefaultData()" class="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-semibold">Reset ke Data Awal</button>
+          </div>
+          <button type="button" onclick="saveSyncSettings()" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold">Simpan Pengaturan</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const MONTHS = ["12/25","01/26","02/26","03/26","04/26","05/26","06/26","07/26","08/26","09/26","10/26","11/26","12/26","01/27","02/27","03/27","04/27"];
     const DEFAULT_SHEET_ID = "1O-NnB2IQqqxuMuWWK-UZUWIP6o6Nx_10nMu1PGtXUdI";
+
+    const APPS_SCRIPT_CODE = `function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProjectData');
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var projects = [];
+  for (var i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) continue;
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = String(rows[i][j] !== undefined && rows[i][j] !== null ? rows[i][j] : '-');
+    }
+    projects.push(obj);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ status: 'ok', projects: projects }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProjectData');
+  var payload = JSON.parse(e.postData.contents);
+  if (payload.action === 'saveAll' && Array.isArray(payload.projects)) {
+    var headers = ['id','panel','name','status','score','waBadge','blueText','blueStart','blueEnd','orangeText','orangeStart','orangeEnd','greyText','greyStart','greyEnd','redText','redStart','redEnd','updatedBy','updatedAt'];
+    sheet.clearContents();
+    var values = [headers];
+    payload.projects.forEach(function(p) {
+      values.push(headers.map(function(h) { return p[h] || '-'; }));
+    });
+    sheet.getRange(1, 1, values.length, headers.length).setValues(values);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ status: 'saved' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+    function copyAppsScriptCode() {
+      navigator.clipboard.writeText(APPS_SCRIPT_CODE);
+      alert("Kode Apps Script berhasil di-copy! Silakan Paste di menu Extensions -> Apps Script pada Google Sheets Anda.");
+    }
+
+    function generateMonthsRange(startStr, endStr) {
+      const parseMY = s => {
+        const parts = (s || "12/25").trim().split("/");
+        return { m: parseInt(parts[0], 10) || 12, y: parseInt(parts[1], 10) || 25 };
+      };
+      const st = parseMY(startStr);
+      const en = parseMY(endStr);
+      const list = [];
+      let curM = st.m, curY = st.y;
+      let guard = 0;
+      while ((curY < en.y || (curY === en.y && curM <= en.m)) && guard < 120) {
+        list.push(String(curM).padStart(2, "0") + "/" + String(curY).padStart(2, "0"));
+        curM++;
+        if (curM > 12) { curM = 1; curY++; }
+        guard++;
+      }
+      return list;
+    }
+
+    const ALL_POSSIBLE_MONTHS = generateMonthsRange("12/25", "12/29");
+    let maxTimelineMonth = localStorage.getItem("sdo_max_month") || "10/27";
+    let MONTHS = generateMonthsRange("12/25", maxTimelineMonth);
 
     const DEFAULT_PROJECTS = [
       { id: "mks", panel: "left", name: "MKS", status: "On Track", score: "100%", waBadge: "MKS 4 Done", blueText: "Total Fitur Pekerjaan 12 Bulan = 96 Fitur", blueStart: "12/25", blueEnd: "12/26", orangeText: "SIK Yang Sudah Rilis = 96 Fitur (SIK 1,2,3,4)", orangeStart: "02/26", orangeEnd: "10/26", greyText: "Sisa fitur yang belum rilis = 0 Fitur", greyStart: "11/26", greyEnd: "12/26", redText: "Fitur yang Sudah Go Live = 96 Fitur (SIK 1,2,3,4)", redStart: "02/26", redEnd: "10/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
@@ -327,14 +419,55 @@
       { id: "qfn", panel: "left", name: "QFN", status: "At Risk", score: "-", waBadge: "QFN 3 Belum", blueText: "Total Fitur Pekerjaan = Monitoring QFN", blueStart: "04/26", blueEnd: "03/27", orangeText: "SIK Yang Sudah Rilis = SIK 1, 2", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = QFN 3 Belum", greyStart: "10/26", greyEnd: "03/27", redText: "Fitur yang Go Live = SIK 1, 2", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
       { id: "isg", panel: "left", name: "ISG", status: "On Track", score: "100%", waBadge: "-", blueText: "Total Fitur Pekerjaan 6 Bulan = N/A Report", blueStart: "04/26", blueEnd: "12/26", orangeText: "SIK Yang Sudah Rilis = 40 Report", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = N/A", greyStart: "10/26", greyEnd: "12/26", redText: "Fitur yang Go Live = 40 Report", redStart: "04/26", redEnd: "09/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
       { id: "sinarmas", panel: "right", name: "Sinarmas", status: "On Track", score: "100%", waBadge: "-", blueText: "Total Fitur Pekerjaan Perbulan = 67 MD", blueStart: "12/25", blueEnd: "04/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "Lutfi: 23 MD | Satria: 22 MD | Sandi: 11 MD | Fadjri: 11 MD", redStart: "10/26", redEnd: "11/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
-      { id: "brispot", panel: "right", name: "Brispot", status: "On Track", score: "-", waBadge: "Brispot 2 Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 720 Fitur", blueStart: "01/26", blueEnd: "02/27", orangeText: "SIK Yang Sudah Rilis = 48 Fitur (SIK 1)", orangeStart: "01/26", orangeEnd: "02/26", greyText: "Sisa fitur yang belum rilis = 672 Fitur (Brispot 2 Belum)", orangeEnd2: "02/26", greyStart: "01/26", greyEnd: "02/27", redText: "Fitur yang Go Live = 48 Fitur (SIK 1)", redStart: "03/26", redEnd: "02/27", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "efs", panel: "right", name: "EFS", status: "At Risk", score: "-", waBadge: "EFS Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 170 CM", blueStart: "12/25", blueEnd: "01/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "Status: EFS Belum Rilis (170 CM)", greyStart: "12/25", greyEnd: "01/27", redText: "-", redStart: "12/25", redEnd: "12/25", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "inalum", panel: "right", name: "INALUM AI Developer", status: "On Track", score: "-", waBadge: "-", blueText: "Total Aplikasi Pekerjaan 3 Bulan", blueStart: "12/25", blueEnd: "03/26", orangeText: "Termin 1 sudah", orangeStart: "12/25", orangeEnd: "01/26", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "-", redStart: "12/25", redEnd: "12/25", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
-      { id: "brissl", panel: "right", name: "BRI SSL", status: "At Risk", score: "-", waBadge: "-", blueText: "Total Pekerjaan 12 Bulan", blueStart: "12/25", blueEnd: "01/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "-", redStart: "12/25", redEnd: "12/25", updatedBy: "System", updatedAt: "14/11/2026 13:14" }
+      { id: "brispot", panel: "right", name: "Brispot", status: "On Track", score: "-", waBadge: "Brispot 2 Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 720 Fitur", blueStart: "09/26", blueEnd: "09/27", orangeText: "SIK Yang Sudah Rilis = 48 Fitur (SIK 1)", orangeStart: "09/26", orangeEnd: "10/26", greyText: "Sisa fitur yang belum rilis = 672 Fitur (Brispot 2 Belum)", greyStart: "09/26", greyEnd: "09/27", redText: "Fitur yang Go Live = 48 Fitur (SIK 1)", redStart: "10/26", redEnd: "09/27", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "efs", panel: "right", name: "EFS", status: "At Risk", score: "-", waBadge: "EFS Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 170 CM", blueStart: "11/26", blueEnd: "10/27", orangeText: "-", orangeStart: "11/26", orangeEnd: "11/26", greyText: "Status: EFS Belum Rilis (170 CM)", greyStart: "11/26", greyEnd: "10/27", redText: "-", redStart: "11/26", redEnd: "11/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
+      { id: "inalum", panel: "right", name: "INALUM AI Developer", status: "On Track", score: "-", waBadge: "-", blueText: "Total Aplikasi Pekerjaan 3 Bulan", blueStart: "08/26", blueEnd: "11/26", orangeText: "Termin 1 sudah", orangeStart: "08/26", orangeEnd: "09/26", greyText: "-", greyStart: "08/26", greyEnd: "08/26", redText: "-", redStart: "08/26", redEnd: "08/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
+      { id: "brissl", panel: "right", name: "BRI SSL", status: "At Risk", score: "-", waBadge: "-", blueText: "Total Pekerjaan 12 Bulan", blueStart: "01/26", blueEnd: "01/27", orangeText: "-", orangeStart: "01/26", orangeEnd: "01/26", greyText: "-", greyStart: "01/26", greyEnd: "01/26", redText: "-", redStart: "01/26", redEnd: "01/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" }
     ];
 
-    let projects = JSON.parse(localStorage.getItem("sdo_projects_v2")) || DEFAULT_PROJECTS;
+    let projects = JSON.parse(localStorage.getItem("sdo_projects_v4")) || DEFAULT_PROJECTS;
+    let hasLocalEdits = localStorage.getItem("sdo_has_local_edits") === "true";
     let appsScriptUrl = localStorage.getItem("sdo_apps_script_url") || "";
+
+    function updateStatusBadge() {
+      const badge = document.getElementById("syncStatusBadge");
+      if (!badge) return;
+      if (appsScriptUrl) {
+        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
+        badge.innerText = "🟢 Sinkron 2 Arah Aktif (Web <-> Google Sheets)";
+      } else if (hasLocalEdits) {
+        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300";
+        badge.innerText = "🔒 Data Editan Web Tersimpan (Anti-Reset Saat Refresh)";
+      } else {
+        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
+        badge.innerText = "🟢 Terhubung ke Google Sheets SDO";
+      }
+    }
+
+    function ensureTimelineCoversAllProjects() {
+      let latestIdx = ALL_POSSIBLE_MONTHS.indexOf(maxTimelineMonth);
+      projects.forEach(p => {
+        [p.blueEnd, p.orangeEnd, p.greyEnd, p.redEnd].forEach(m => {
+          const idx = ALL_POSSIBLE_MONTHS.indexOf((m || "").trim());
+          if (idx > latestIdx) latestIdx = idx;
+        });
+      });
+      const finalEndMonth = ALL_POSSIBLE_MONTHS[Math.max(16, latestIdx)] || "12/27";
+      MONTHS = generateMonthsRange("12/25", finalEndMonth);
+      document.documentElement.style.setProperty("--cols", MONTHS.length);
+      const sel = document.getElementById("maxMonthFilter");
+      if (sel && Array.from(sel.options).some(o => o.value === finalEndMonth)) {
+        sel.value = finalEndMonth;
+      }
+    }
+
+    function updateMaxTimelineMonth(val) {
+      maxTimelineMonth = val;
+      localStorage.setItem("sdo_max_month", val);
+      ensureTimelineCoversAllProjects();
+      renderMonthHeaders();
+      renderAll();
+    }
 
     function getMonthIdx(m) {
       const idx = MONTHS.indexOf((m || "").trim());
@@ -342,13 +475,11 @@
     }
 
     function renderMonthHeaders() {
+      ensureTimelineCoversAllProjects();
       const html = MONTHS.map(m => `<div class="py-1 border-l border-dashed border-slate-300">${m}</div>`).join("");
       document.getElementById("leftMonthsHeader").innerHTML = html;
       document.getElementById("rightMonthsHeader").innerHTML = html;
-
-      document.querySelectorAll(".month-select").forEach(sel => {
-        sel.innerHTML = MONTHS.map(m => `<option value="${m}">${m}</option>`).join("");
-      });
+      document.getElementById("monthsDatalist").innerHTML = ALL_POSSIBLE_MONTHS.map(m => `<option value="${m}">`).join("");
     }
 
     function makeGridLines() {
@@ -372,7 +503,6 @@
       const hasScore = p.score && p.score !== "-";
       const hasWa = showWaBadge && p.waBadge && p.waBadge !== "-";
 
-      // Check if orange and grey can share a row or stack cleanly
       const oValid = p.orangeText && p.orangeText !== "-";
       const gValid = p.greyText && p.greyText !== "-";
       let middleRowHTML = "";
@@ -394,7 +524,6 @@
         middleRowHTML = `<div class="timeline-grid">${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>`;
       }
 
-      // Red bar or Sinarmas multi-person cards
       let redRowHTML = "";
       if (p.redText && p.redText !== "-") {
         if (p.redText.includes("|")) {
@@ -408,7 +537,7 @@
       }
 
       return `
-        <div onclick="openEditModal('${p.id}')" class="group grid grid-cols-[155px_1fr] gap-2 items-start p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition border border-transparent hover:border-blue-200">
+        <div onclick="openEditModal('${p.id}')" class="group grid grid-cols-[150px_1fr] gap-2 items-start p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition border border-transparent hover:border-blue-200">
           <div class="pr-2 space-y-1">
             <div class="font-extrabold text-xs text-slate-900 group-hover:text-blue-700 leading-snug">${p.name}</div>
             ${statusBadgeHTML(p.status)}
@@ -426,6 +555,8 @@
     }
 
     function renderAll() {
+      renderMonthHeaders();
+      updateStatusBadge();
       const showWa = document.getElementById("toggleWaBadge").checked;
       const leftList = projects.filter(p => p.panel === "left");
       const rightList = projects.filter(p => p.panel === "right");
@@ -447,20 +578,20 @@
       document.getElementById("edit_updatedBy").value = p.updatedBy || "";
 
       document.getElementById("edit_blueText").value = p.blueText || "-";
-      document.getElementById("edit_blueStart").value = MONTHS.includes(p.blueStart) ? p.blueStart : "12/25";
-      document.getElementById("edit_blueEnd").value = MONTHS.includes(p.blueEnd) ? p.blueEnd : "12/26";
+      document.getElementById("edit_blueStart").value = p.blueStart || "12/25";
+      document.getElementById("edit_blueEnd").value = p.blueEnd || "12/26";
 
       document.getElementById("edit_orangeText").value = p.orangeText || "-";
-      document.getElementById("edit_orangeStart").value = MONTHS.includes(p.orangeStart) ? p.orangeStart : "12/25";
-      document.getElementById("edit_orangeEnd").value = MONTHS.includes(p.orangeEnd) ? p.orangeEnd : "12/26";
+      document.getElementById("edit_orangeStart").value = p.orangeStart || "12/25";
+      document.getElementById("edit_orangeEnd").value = p.orangeEnd || "12/26";
 
       document.getElementById("edit_greyText").value = p.greyText || "-";
-      document.getElementById("edit_greyStart").value = MONTHS.includes(p.greyStart) ? p.greyStart : "12/25";
-      document.getElementById("edit_greyEnd").value = MONTHS.includes(p.greyEnd) ? p.greyEnd : "12/26";
+      document.getElementById("edit_greyStart").value = p.greyStart || "12/25";
+      document.getElementById("edit_greyEnd").value = p.greyEnd || "12/26";
 
       document.getElementById("edit_redText").value = p.redText || "-";
-      document.getElementById("edit_redStart").value = MONTHS.includes(p.redStart) ? p.redStart : "12/25";
-      document.getElementById("edit_redEnd").value = MONTHS.includes(p.redEnd) ? p.redEnd : "12/26";
+      document.getElementById("edit_redStart").value = p.redStart || "12/25";
+      document.getElementById("edit_redEnd").value = p.redEnd || "12/26";
 
       document.getElementById("editModal").classList.remove("hidden");
       document.getElementById("editModal").classList.add("flex");
@@ -477,20 +608,20 @@
       document.getElementById("edit_updatedBy").value = "";
 
       document.getElementById("edit_blueText").value = "Total Fitur Pekerjaan 12 Bulan = 100 Fitur";
-      document.getElementById("edit_blueStart").value = "01/26";
-      document.getElementById("edit_blueEnd").value = "12/26";
+      document.getElementById("edit_blueStart").value = "09/26";
+      document.getElementById("edit_blueEnd").value = "09/27";
 
       document.getElementById("edit_orangeText").value = "SIK Yang Sudah Rilis = 50 Fitur (SIK 1,2)";
-      document.getElementById("edit_orangeStart").value = "01/26";
-      document.getElementById("edit_orangeEnd").value = "06/26";
+      document.getElementById("edit_orangeStart").value = "09/26";
+      document.getElementById("edit_orangeEnd").value = "03/27";
 
       document.getElementById("edit_greyText").value = "Sisa fitur yang belum rilis = 50 Fitur";
-      document.getElementById("edit_greyStart").value = "07/26";
-      document.getElementById("edit_greyEnd").value = "12/26";
+      document.getElementById("edit_greyStart").value = "04/27";
+      document.getElementById("edit_greyEnd").value = "09/27";
 
       document.getElementById("edit_redText").value = "Fitur yang Go Live = 50 Fitur (SIK 1,2)";
-      document.getElementById("edit_redStart").value = "01/26";
-      document.getElementById("edit_redEnd").value = "06/26";
+      document.getElementById("edit_redStart").value = "09/26";
+      document.getElementById("edit_redEnd").value = "03/27";
 
       document.getElementById("editModal").classList.remove("hidden");
       document.getElementById("editModal").classList.add("flex");
@@ -513,17 +644,17 @@
         score: document.getElementById("edit_score").value || "-",
         waBadge: document.getElementById("edit_waBadge").value || "-",
         blueText: document.getElementById("edit_blueText").value || "-",
-        blueStart: document.getElementById("edit_blueStart").value,
-        blueEnd: document.getElementById("edit_blueEnd").value,
+        blueStart: document.getElementById("edit_blueStart").value.trim(),
+        blueEnd: document.getElementById("edit_blueEnd").value.trim(),
         orangeText: document.getElementById("edit_orangeText").value || "-",
-        orangeStart: document.getElementById("edit_orangeStart").value,
-        orangeEnd: document.getElementById("edit_orangeEnd").value,
+        orangeStart: document.getElementById("edit_orangeStart").value.trim(),
+        orangeEnd: document.getElementById("edit_orangeEnd").value.trim(),
         greyText: document.getElementById("edit_greyText").value || "-",
-        greyStart: document.getElementById("edit_greyStart").value,
-        greyEnd: document.getElementById("edit_greyEnd").value,
+        greyStart: document.getElementById("edit_greyStart").value.trim(),
+        greyEnd: document.getElementById("edit_greyEnd").value.trim(),
         redText: document.getElementById("edit_redText").value || "-",
-        redStart: document.getElementById("edit_redStart").value,
-        redEnd: document.getElementById("edit_redEnd").value,
+        redStart: document.getElementById("edit_redStart").value.trim(),
+        redEnd: document.getElementById("edit_redEnd").value.trim(),
         updatedBy: document.getElementById("edit_updatedBy").value || "Team SDO",
         updatedAt: nowStr
       };
@@ -535,7 +666,10 @@
         projects.push(updatedObj);
       }
 
-      localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+      // Kunci perubahan lokal agar TIDAK tertimpa saat halaman di-refresh
+      hasLocalEdits = true;
+      localStorage.setItem("sdo_has_local_edits", "true");
+      localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
       renderAll();
       closeEditModal();
 
@@ -557,31 +691,37 @@
       const id = document.getElementById("edit_id").value;
       if (!confirm("Hapus baris project ini?")) return;
       projects = projects.filter(x => x.id !== id);
-      localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+      hasLocalEdits = true;
+      localStorage.setItem("sdo_has_local_edits", "true");
+      localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
       renderAll();
       closeEditModal();
     }
 
-    // Pull directly from Google Sheets via JSONP gviz or Apps Script URL
-    function pullFromGoogleSheets(showAlert = false) {
+    function pullFromGoogleSheets(manualClick = false) {
+      if (manualClick && hasLocalEdits && !appsScriptUrl) {
+        if (!confirm("Menarik data dari Google Sheets akan menimpa editan yang baru Anda buat di Web (jika belum dimasukkan ke Google Sheets). Lanjutkan?")) {
+          return;
+        }
+      }
       if (appsScriptUrl) {
         fetch(appsScriptUrl)
           .then(r => r.json())
           .then(res => {
             if (res && Array.isArray(res.projects) && res.projects.length > 0) {
               projects = res.projects;
-              localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+              localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
               renderAll();
-              if (showAlert) alert("Berhasil menarik data terbaru dari Google Sheets!");
+              if (manualClick) alert("Berhasil menarik data terbaru dari Google Sheets!");
             }
           })
-          .catch(() => fallbackGvizPull(showAlert));
+          .catch(() => fallbackGvizPull(manualClick));
       } else {
-        fallbackGvizPull(showAlert);
+        fallbackGvizPull(manualClick);
       }
     }
 
-    function fallbackGvizPull(showAlert) {
+    function fallbackGvizPull(manualClick) {
       window.handleGvizResponse = function(response) {
         try {
           if (!response || !response.table || !response.table.rows) return;
@@ -602,17 +742,27 @@
           }
           if (loaded.length > 0) {
             projects = loaded;
-            localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+            hasLocalEdits = false;
+            localStorage.setItem("sdo_has_local_edits", "false");
+            localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
             renderAll();
-            if (showAlert) alert("Data terbaru berhasil ditarik dari Google Sheets SDO!");
+            if (manualClick) alert("Data terbaru berhasil ditarik dari Google Sheets SDO!");
           }
         } catch (e) {
-          if (showAlert) alert("Menggunakan data lokal terbaru. Pastikan akses Google Sheets sudah 'Anyone with the link can view'.");
+          if (manualClick) alert("Gagal menarik dari Google Sheets. Pastikan akses Google Sheets sudah 'Anyone with the link'.");
         }
       };
       const script = document.createElement("script");
       script.src = `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleGvizResponse&sheet=ProjectData&_=${Date.now()}`;
       document.body.appendChild(script);
+    }
+
+    function exportBackupJSON() {
+      const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "backup_monitoring_sdo.json";
+      a.click();
     }
 
     function openSyncModal() {
@@ -630,13 +780,26 @@
       appsScriptUrl = document.getElementById("appsScriptUrlInput").value.trim();
       localStorage.setItem("sdo_apps_script_url", appsScriptUrl);
       closeSyncModal();
-      pullFromGoogleSheets(true);
+      updateStatusBadge();
+      if (appsScriptUrl) {
+        // Push current web edits directly to Google Sheets right away!
+        fetch(appsScriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "saveAll", projects })
+        }).then(() => {
+          alert("Web App URL tersimpan! Data yang Anda edit di Web sekarang otomatis tersinkron ke Google Sheets.");
+        });
+      }
     }
 
     function resetToDefaultData() {
-      if (!confirm("Kembalikan ke data awal sesuai laporan WhatsApp Mutya?")) return;
+      if (!confirm("Kembalikan ke data awal?")) return;
       projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
-      localStorage.setItem("sdo_projects_v2", JSON.stringify(projects));
+      hasLocalEdits = false;
+      localStorage.setItem("sdo_has_local_edits", "false");
+      localStorage.setItem("sdo_projects_v4", JSON.stringify(projects));
       renderAll();
       closeSyncModal();
     }
@@ -658,10 +821,11 @@
       link.click();
     }
 
-    // Init
-    renderMonthHeaders();
+    // Init: Hanya tarik otomatis dari Google Sheets jika belum ada editan lokal di Web (atau jika Apps Script 2 arah sudah aktif)
     renderAll();
-    pullFromGoogleSheets(false);
+    if (!hasLocalEdits || appsScriptUrl) {
+      pullFromGoogleSheets(false);
+    }
   </script>
 </body>
 </html>
