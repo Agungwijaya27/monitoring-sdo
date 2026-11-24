@@ -315,6 +315,15 @@
       return list;
     }
 
+    // Google Sheets bisa mengubah "100%" menjadi angka 1 (dan "40%" menjadi 0.4). Kembalikan ke persen.
+    function normalizeScore(v) {
+      const s = String(v == null ? "" : v).trim();
+      if (/^(0(\.\d+)?|1(\.0+)?|\.\d+)$/.test(s)) {
+        return (Math.round(parseFloat(s) * 1000) / 10) + "%";
+      }
+      return s;
+    }
+
     function normalizeProject(raw) {
       const p = { id: String(raw.id == null ? "" : raw.id).trim() };
       FIELDS.forEach(f => {
@@ -322,6 +331,7 @@
         if (MONTH_FIELDS.includes(f)) v = normalizeMonth(v) || v.trim();
         p[f] = v;
       });
+      p.score = normalizeScore(p.score);
       if (p.panel !== "right") p.panel = "left";
       p.updatedBy = raw.updatedBy == null ? "" : String(raw.updatedBy);
       p.updatedAt = raw.updatedAt == null ? "" : String(raw.updatedAt);
