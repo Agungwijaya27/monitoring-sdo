@@ -42,6 +42,10 @@
       text-align: center;
       min-height: 28px;
     }
+    .field-dirty { background-color: #fefce8 !important; border-color: #eab308 !important; }
+    .field-invalid { background-color: #fef2f2 !important; border-color: #ef4444 !important; }
+    .row-flash { animation: rowFlash 1.6s ease-out; }
+    @keyframes rowFlash { 0% { background-color: #dbeafe; } 100% { background-color: transparent; } }
     @media print {
       .no-export { display: none !important; }
     }
@@ -56,23 +60,23 @@
       <div>
         <div class="flex items-center gap-2 flex-wrap">
           <h1 class="font-bold text-slate-900 text-sm md:text-base">Dashboard Monitoring Progress Project</h1>
-          <span id="syncStatusBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-            ⚡ Terhubung Otomatis 2 Arah ke Google Sheets SDO
+          <span id="syncStatusBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+            ⏳ Menghubungkan ke Google Sheets...
           </span>
         </div>
-        <p class="text-xs text-slate-500">Auto-Save Realtime Aktif: Setiap ketikan di Web otomatis mengubah Google Sheets & sebaliknya tanpa perlu klik Simpan!</p>
+        <p class="text-xs text-slate-500">Data tersinkron otomatis dengan Google Sheets. Klik sebuah project untuk mengedit — hanya kolom yang Anda ubah yang disimpan, sehingga aman dipakai banyak orang sekaligus.</p>
       </div>
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
       <label class="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg cursor-pointer select-none">
-        <input type="checkbox" id="toggleWaBadge" checked onchange="renderAll()" class="rounded text-blue-600">
+        <input type="checkbox" id="toggleWaBadge" checked class="rounded text-blue-600">
         <span>Label Update WA</span>
       </label>
 
       <div class="flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 rounded-lg text-xs">
         <span class="font-semibold text-indigo-900">Batas Timeline:</span>
-        <select id="maxMonthFilter" onchange="updateMaxTimelineMonth(this.value)" class="bg-white border border-indigo-300 rounded px-1.5 py-0.5 font-bold text-indigo-800">
+        <select id="maxMonthFilter" class="bg-white border border-indigo-300 rounded px-1.5 py-0.5 font-bold text-indigo-800">
           <option value="04/27">Sampai 04/27</option>
           <option value="09/27">Sampai 09/27</option>
           <option value="10/27">Sampai 10/27</option>
@@ -82,18 +86,22 @@
         </select>
       </div>
 
-      <button onclick="openAddProjectModal()" class="text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+      <button id="btnRefresh" type="button" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg transition" title="Ambil data terbaru dari Google Sheets">
+        🔄 Refresh
+      </button>
+
+      <button id="btnAdd" type="button" class="text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
         ➕ Tambah Project
       </button>
 
-      <button onclick="exportJPG('both')" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+      <button type="button" data-export="both" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
         🖼️ Export Gabungan JPG
       </button>
 
-      <button onclick="exportJPG('left')" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kiri saja">
+      <button type="button" data-export="left" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kiri saja">
         📥 JPG Kiri
       </button>
-      <button onclick="exportJPG('right')" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kanan saja">
+      <button type="button" data-export="right" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg transition" title="Unduh Panel Kanan saja">
         📥 JPG Kanan
       </button>
     </div>
@@ -101,7 +109,7 @@
 
   <!-- EXPORT AREA -->
   <div id="captureArea" class="max-w-[1720px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-6">
-    
+
     <!-- PANEL KIRI -->
     <div id="leftPanelCard" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 relative overflow-x-auto">
       <div class="flex items-start justify-between gap-2 mb-4 pb-2 border-b border-slate-100">
@@ -114,13 +122,11 @@
         </div>
       </div>
 
-      <!-- Header Bulan Panel Kiri -->
       <div class="grid grid-cols-[150px_1fr] gap-2 mb-2 items-center">
         <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Project / Status</div>
         <div id="leftMonthsHeader" class="timeline-grid text-[9.5px] font-bold text-slate-600 text-center"></div>
       </div>
 
-      <!-- Daftar Project Kiri -->
       <div id="leftProjectsContainer" class="space-y-4"></div>
     </div>
 
@@ -141,53 +147,52 @@
         </div>
       </div>
 
-      <!-- Header Bulan Panel Kanan -->
       <div class="grid grid-cols-[150px_1fr] gap-2 mb-2 items-center">
         <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Project / Status</div>
         <div id="rightMonthsHeader" class="timeline-grid text-[9.5px] font-bold text-slate-600 text-center"></div>
       </div>
 
-      <!-- Daftar Project Kanan -->
       <div id="rightProjectsContainer" class="space-y-4"></div>
     </div>
 
   </div>
 
-  <!-- DATALIST PILIHAN BULAN FLEKSIBEL -->
   <datalist id="monthsDatalist"></datalist>
 
-  <!-- MODAL EDIT PROJECT (INSTANT AUTO-SAVE KE GOOGLE SHEETS TANPA KLIK SIMPAN) -->
-  <div id="editModal" onclick="if(event.target===this) closeEditModal()" class="no-export fixed inset-0 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+  <!-- TOAST -->
+  <div id="toast" class="no-export fixed bottom-4 right-4 z-[60] hidden max-w-sm text-xs font-semibold px-4 py-3 rounded-lg shadow-lg"></div>
+
+  <!-- MODAL EDIT PROJECT -->
+  <div id="editModal" class="no-export fixed inset-0 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
       <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <h3 id="modalTitle" class="font-bold text-base">Edit Progress Project</h3>
-            <span id="modalAutoSaveIndicator" class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
-              ✓ Tersimpan Otomatis ke Google Sheets
-            </span>
+            <span id="modalStateBadge" class="text-[10px] bg-slate-500/20 text-slate-200 border border-slate-400/30 px-2 py-0.5 rounded-full font-semibold">Belum ada perubahan</span>
           </div>
-          <p class="text-[11px] text-slate-300">Langsung ketik perubahan di bawah ini — isi tabel Google Sheets & layar seluruh tim otomatis berubah!</p>
+          <p id="modalSubtitle" class="text-[11px] text-slate-300">Ubah data lalu klik Simpan (atau Ctrl+S). Kolom yang diubah ditandai kuning.</p>
         </div>
-        <button onclick="closeEditModal()" class="text-slate-300 hover:text-white text-2xl leading-none px-2">&times;</button>
+        <button type="button" data-action="close" class="text-slate-300 hover:text-white text-2xl leading-none px-2" title="Tutup (Esc)">&times;</button>
       </div>
-      <div id="editForm" oninput="triggerInstantAutoSave()" onchange="triggerInstantAutoSave()" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto text-xs">
-        <input type="hidden" id="edit_id">
+      <form id="editForm" autocomplete="off" class="p-5 space-y-4 max-h-[78vh] overflow-y-auto text-xs">
+        <div id="modalAlert" class="hidden p-3 rounded-lg border text-xs font-semibold"></div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Nama Project</label>
-            <input type="text" id="edit_name" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <input type="text" data-field="name" class="w-full border border-slate-300 rounded-lg px-3 py-2">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Posisi Panel</label>
-            <select id="edit_panel" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <select data-field="panel" class="w-full border border-slate-300 rounded-lg px-3 py-2">
               <option value="left">Panel Kiri</option>
               <option value="right">Panel Kanan</option>
             </select>
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Status Indikator</label>
-            <select id="edit_status" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <select data-field="status" class="w-full border border-slate-300 rounded-lg px-3 py-2">
               <option value="On Track">🟢 On Track</option>
               <option value="At Risk">🟡 At Risk</option>
               <option value="Off Track">🔴 Off Track</option>
@@ -198,364 +203,406 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Score (Isi '-' jika tidak ada)</label>
-            <input type="text" id="edit_score" placeholder="100%" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <input type="text" data-field="score" placeholder="100%" class="w-full border border-slate-300 rounded-lg px-3 py-2">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Badge Update WA / Catatan Singkat</label>
-            <input type="text" id="edit_waBadge" placeholder="Contoh: SIK 6 Done / Sirkular" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <input type="text" data-field="waBadge" placeholder="Contoh: SIK 6 Done / Sirkular" class="w-full border border-slate-300 rounded-lg px-3 py-2">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Diupdate Oleh</label>
-            <input type="text" id="edit_updatedBy" placeholder="Nama Anda (misal: Mutya / Agung)" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+            <label class="block font-semibold text-slate-700 mb-1">Nama Anda (pengubah)</label>
+            <input type="text" id="edit_updatedBy" placeholder="Misal: Mutya / Agung" class="w-full border border-slate-300 rounded-lg px-3 py-2">
           </div>
         </div>
 
-        <!-- Bar Biru -->
-        <div class="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2">
-          <div class="font-bold text-blue-900">🟦 Bar Biru (Total Fitur / Kontrak Pekerjaan)</div>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div class="md:col-span-2">
-              <label class="block text-slate-600 mb-0.5">Teks Bar Biru</label>
-              <input type="text" id="edit_blueText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_blueStart" placeholder="01/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_blueEnd" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-          </div>
-        </div>
+        <div id="barSections" class="space-y-4"></div>
 
-        <!-- Bar Oranye -->
-        <div class="p-3 rounded-xl bg-orange-50/70 border border-orange-200 space-y-2">
-          <div class="font-bold text-orange-900">🟧 Bar Oranye (SIK yang Sudah Rilis / Termin) — Isi '-' jika tidak ditampilkan</div>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div class="md:col-span-2">
-              <label class="block text-slate-600 mb-0.5">Teks Bar Oranye</label>
-              <input type="text" id="edit_orangeText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_orangeStart" placeholder="02/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_orangeEnd" placeholder="10/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-          </div>
-        </div>
+        <p id="lastUpdatedInfo" class="text-[11px] text-slate-500"></p>
 
-        <!-- Bar Abu-abu -->
-        <div class="p-3 rounded-xl bg-slate-100 border border-slate-300 space-y-2">
-          <div class="font-bold text-slate-800">⬜ Bar Abu-Abu (Sisa Fitur Belum Rilis) — Isi '-' jika tidak ditampilkan</div>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div class="md:col-span-2">
-              <label class="block text-slate-600 mb-0.5">Teks Bar Abu-Abu</label>
-              <input type="text" id="edit_greyText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_greyStart" placeholder="11/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_greyEnd" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-          </div>
-        </div>
-
-        <!-- Bar Merah/Coral -->
-        <div class="p-3 rounded-xl bg-rose-50/70 border border-rose-200 space-y-2">
-          <div class="font-bold text-rose-900">🟥 Bar Merah Coral (Fitur Go Live / Terdeliver / Resource MD pisahkan dengan '|')</div>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div class="md:col-span-2">
-              <label class="block text-slate-600 mb-0.5">Teks Bar Merah</label>
-              <input type="text" id="edit_redText" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_redStart" placeholder="02/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-            <div>
-              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
-              <input type="text" list="monthsDatalist" id="edit_redEnd" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
-            </div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-3 border-t border-slate-200">
-          <button type="button" onclick="deleteCurrentProject()" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-semibold">
+        <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-200">
+          <button type="button" data-action="delete" id="btnDelete" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-semibold">
             🗑️ Hapus Project
           </button>
-          <button type="button" onclick="closeEditModal()" class="px-5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-sm">
-            ✓ Tutup (Sudah Otomatis Tersimpan ke Sheets)
-          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" data-action="close" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">
+              Batal
+            </button>
+            <button type="submit" id="btnSave" class="px-5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-sm disabled:opacity-60 disabled:cursor-wait">
+              💾 Simpan
+            </button>
+          </div>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 
   <script>
-    // URL Resmi Google Apps Script milik Anda sudah tertanam permanen di sini!
+    // =====================================================================
+    // KONFIGURASI
+    // =====================================================================
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRO3zELvuu7mvFHJN-mQDJj8QyEFphpOcl5t3Xq5aKOp_bSIs-fAWehxFg7EAuptv5/exec";
+    const POLL_INTERVAL_MS = 5000;
+    const CACHE_KEY = "sdo_projects_cache_v8";
+    const NAME_KEY = "sdo_editor_name";
+    const MAX_MONTH_KEY = "sdo_max_month";
+
+    // Kolom data project yang bisa diedit (selain id & metadata update)
+    const BARS = [
+      { key: "blue",   title: "🟦 Bar Biru (Total Fitur / Kontrak Pekerjaan)", box: "bg-blue-50/70 border-blue-200", head: "text-blue-900" },
+      { key: "orange", title: "🟧 Bar Oranye (SIK yang Sudah Rilis / Termin) — Isi '-' jika tidak ditampilkan", box: "bg-orange-50/70 border-orange-200", head: "text-orange-900" },
+      { key: "grey",   title: "⬜ Bar Abu-Abu (Sisa Fitur Belum Rilis) — Isi '-' jika tidak ditampilkan", box: "bg-slate-100 border-slate-300", head: "text-slate-800" },
+      { key: "red",    title: "🟥 Bar Merah Coral (Fitur Go Live / Terdeliver / Resource MD pisahkan dengan '|')", box: "bg-rose-50/70 border-rose-200", head: "text-rose-900" }
+    ];
+    const FIELDS = ["name", "panel", "status", "score", "waBadge"]
+      .concat(...BARS.map(b => [b.key + "Text", b.key + "Start", b.key + "End"]));
+    const MONTH_FIELDS = FIELDS.filter(f => /(Start|End)$/.test(f));
+    const FIELD_LABELS = {
+      name: "Nama Project", panel: "Posisi Panel", status: "Status", score: "Score", waBadge: "Badge WA",
+      blueText: "Teks Bar Biru", blueStart: "Mulai Biru", blueEnd: "Selesai Biru",
+      orangeText: "Teks Bar Oranye", orangeStart: "Mulai Oranye", orangeEnd: "Selesai Oranye",
+      greyText: "Teks Bar Abu", greyStart: "Mulai Abu", greyEnd: "Selesai Abu",
+      redText: "Teks Bar Merah", redStart: "Mulai Merah", redEnd: "Selesai Merah"
+    };
+
+    // =====================================================================
+    // UTIL
+    // =====================================================================
+    const $ = id => document.getElementById(id);
+
+    function escapeHtml(v) {
+      return String(v == null ? "" : v)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function safeStorageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+    function safeStorageSet(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+
+    function nowStr() {
+      return new Date().toLocaleString("id-ID");
+    }
+
+    function timeStr() {
+      return new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    // "1/26", "01/2026", " 01/26 " -> "01/26". Mengembalikan null jika tidak valid.
+    function normalizeMonth(v) {
+      const s = String(v || "").trim();
+      const m = s.match(/^(\d{1,2})\s*[\/\-.]\s*(\d{2}|\d{4})$/);
+      if (!m) return null;
+      const mm = parseInt(m[1], 10);
+      if (mm < 1 || mm > 12) return null;
+      const yy = m[2].length === 4 ? m[2].slice(2) : m[2];
+      return String(mm).padStart(2, "0") + "/" + yy;
+    }
+
+    function monthToNum(m) {
+      const n = normalizeMonth(m);
+      if (!n) return null;
+      const [mm, yy] = n.split("/").map(x => parseInt(x, 10));
+      return yy * 12 + (mm - 1);
+    }
 
     function generateMonthsRange(startStr, endStr) {
-      const parseMY = s => {
-        const parts = (s || "12/25").trim().split("/");
-        return { m: parseInt(parts[0], 10) || 12, y: parseInt(parts[1], 10) || 25 };
-      };
-      const st = parseMY(startStr);
-      const en = parseMY(endStr);
+      const st = monthToNum(startStr) ?? monthToNum("12/25");
+      const en = monthToNum(endStr) ?? st;
       const list = [];
-      let curM = st.m, curY = st.y;
-      let guard = 0;
-      while ((curY < en.y || (curY === en.y && curM <= en.m)) && guard < 120) {
-        list.push(String(curM).padStart(2, "0") + "/" + String(curY).padStart(2, "0"));
-        curM++;
-        if (curM > 12) { curM = 1; curY++; }
-        guard++;
+      for (let n = st; n <= en && list.length < 120; n++) {
+        const yy = Math.floor(n / 12), mm = (n % 12) + 1;
+        list.push(String(mm).padStart(2, "0") + "/" + String(yy).padStart(2, "0"));
       }
       return list;
     }
 
+    function normalizeProject(raw) {
+      const p = { id: String(raw.id == null ? "" : raw.id).trim() };
+      FIELDS.forEach(f => {
+        let v = raw[f] == null ? "" : String(raw[f]);
+        if (MONTH_FIELDS.includes(f)) v = normalizeMonth(v) || v.trim();
+        p[f] = v;
+      });
+      if (p.panel !== "right") p.panel = "left";
+      p.updatedBy = raw.updatedBy == null ? "" : String(raw.updatedBy);
+      p.updatedAt = raw.updatedAt == null ? "" : String(raw.updatedAt);
+      return p;
+    }
+
+    function isBlank(text) {
+      return !text || String(text).trim() === "" || String(text).trim() === "-";
+    }
+
+    // =====================================================================
+    // STATE
+    // =====================================================================
     const ALL_POSSIBLE_MONTHS = generateMonthsRange("12/25", "12/29");
-    let maxTimelineMonth = localStorage.getItem("sdo_max_month") || "10/27";
+    let maxTimelineMonth = safeStorageGet(MAX_MONTH_KEY) || "12/27";
     let MONTHS = generateMonthsRange("12/25", maxTimelineMonth);
 
-    const DEFAULT_PROJECTS = [
-      { id: "mks", panel: "left", name: "MKS", status: "On Track", score: "100%", waBadge: "MKS 4 Done", blueText: "Total Fitur Pekerjaan 12 Bulan = 96 Fitur", blueStart: "12/25", blueEnd: "12/26", orangeText: "SIK Yang Sudah Rilis = 96 Fitur (SIK 1,2,3,4)", orangeStart: "02/26", orangeEnd: "10/26", greyText: "Sisa fitur yang belum rilis = 0 Fitur", greyStart: "11/26", greyEnd: "12/26", redText: "Fitur yang Sudah Go Live = 96 Fitur (SIK 1,2,3,4)", redStart: "02/26", redEnd: "10/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "nds", panel: "left", name: "NDS", status: "On Track", score: "100%", waBadge: "NDS 5 Sirkular", blueText: "Total Fitur Pekerjaan 12 Bulan = 120 Fitur", blueStart: "03/26", blueEnd: "04/27", orangeText: "SIK Yang Sudah Rilis = 50 Fitur (SIK 1,2,3,4,5 - SIK 5 Sirkular)", orangeStart: "04/26", orangeEnd: "11/26", greyText: "Sisa fitur yang belum rilis = 70 Fitur", greyStart: "12/26", greyEnd: "04/27", redText: "Fitur yang Sudah Go Live = 40 Fitur (SIK 1,2,3,4)", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "brimen", panel: "left", name: "BRIMEN", status: "On Track", score: "100%", waBadge: "Belum ada update", blueText: "Total Fitur Pekerjaan 12 Bulan = 100 Fitur", blueStart: "04/26", blueEnd: "04/27", orangeText: "SIK Yang Sudah Rilis = 46 Fitur (SIK 1,2)", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = 54 Fitur", greyStart: "10/26", greyEnd: "04/27", redText: "Fitur yang Go Live = 46 Fitur (SIK 1,2)", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "ppo", panel: "left", name: "Support Monitoring (PPO)", status: "On Track", score: "100%", waBadge: "SIK 6 Done (Tinggal Invoice)", blueText: "Total Fitur Pekerjaan 6 Bulan = 108 Report", blueStart: "06/26", blueEnd: "11/26", orangeText: "SIK Yang Sudah Rilis = 108 Report (SIK 1,2,3,4,5,6 Done)", orangeStart: "06/26", orangeEnd: "11/26", greyText: "Sisa fitur yang belum rilis = 0 Report (Tinggal Buat Invoice)", greyStart: "11/26", greyEnd: "11/26", redText: "Report yang sudah terdeliver = 108 Fitur (SIK 1,2,3,4,5,6)", redStart: "06/26", redEnd: "11/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "qfn", panel: "left", name: "QFN", status: "At Risk", score: "-", waBadge: "QFN 3 Belum", blueText: "Total Fitur Pekerjaan = Monitoring QFN", blueStart: "04/26", blueEnd: "03/27", orangeText: "SIK Yang Sudah Rilis = SIK 1, 2", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = QFN 3 Belum", greyStart: "10/26", greyEnd: "03/27", redText: "Fitur yang Go Live = SIK 1, 2", redStart: "04/26", redEnd: "09/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "isg", panel: "left", name: "ISG", status: "On Track", score: "100%", waBadge: "-", blueText: "Total Fitur Pekerjaan 6 Bulan = N/A Report", blueStart: "04/26", blueEnd: "12/26", orangeText: "SIK Yang Sudah Rilis = 40 Report", orangeStart: "04/26", orangeEnd: "09/26", greyText: "Sisa fitur yang belum rilis = N/A", greyStart: "10/26", greyEnd: "12/26", redText: "Fitur yang Go Live = 40 Report", redStart: "04/26", redEnd: "09/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
-      { id: "sinarmas", panel: "right", name: "Sinarmas", status: "On Track", score: "100%", waBadge: "-", blueText: "Total Fitur Pekerjaan Perbulan = 67 MD", blueStart: "12/25", blueEnd: "04/27", orangeText: "-", orangeStart: "12/25", orangeEnd: "12/25", greyText: "-", greyStart: "12/25", greyEnd: "12/25", redText: "Lutfi: 23 MD | Satria: 22 MD | Sandi: 11 MD | Fadjri: 11 MD", redStart: "10/26", redEnd: "11/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
-      { id: "brispot", panel: "right", name: "Brispot", status: "On Track", score: "-", waBadge: "Brispot 2 Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 720 Fitur", blueStart: "09/26", blueEnd: "09/27", orangeText: "SIK Yang Sudah Rilis = 48 Fitur (SIK 1)", orangeStart: "09/26", orangeEnd: "10/26", greyText: "Sisa fitur yang belum rilis = 672 Fitur (Brispot 2 Belum)", greyStart: "09/26", greyEnd: "09/27", redText: "Fitur yang Go Live = 48 Fitur (SIK 1)", redStart: "10/26", redEnd: "09/27", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "efs", panel: "right", name: "EFS", status: "At Risk", score: "-", waBadge: "EFS Belum", blueText: "Total Fitur Pekerjaan 12 Bulan = 170 CM", blueStart: "11/26", blueEnd: "10/27", orangeText: "-", orangeStart: "11/26", orangeEnd: "11/26", greyText: "Status: EFS Belum Rilis (170 CM)", greyStart: "11/26", greyEnd: "10/27", redText: "-", redStart: "11/26", redEnd: "11/26", updatedBy: "Mutya (Update WA)", updatedAt: "14/11/2026 13:14" },
-      { id: "inalum", panel: "right", name: "INALUM AI Developer", status: "On Track", score: "-", waBadge: "-", blueText: "Total Aplikasi Pekerjaan 3 Bulan", blueStart: "08/26", blueEnd: "11/26", orangeText: "Termin 1 sudah", orangeStart: "08/26", orangeEnd: "09/26", greyText: "-", greyStart: "08/26", greyEnd: "08/26", redText: "-", redStart: "08/26", redEnd: "08/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" },
-      { id: "brissl", panel: "right", name: "BRI SSL", status: "At Risk", score: "-", waBadge: "-", blueText: "Total Pekerjaan 12 Bulan", blueStart: "01/26", blueEnd: "01/27", orangeText: "-", orangeStart: "01/26", orangeEnd: "01/26", greyText: "-", greyStart: "01/26", greyEnd: "01/26", redText: "-", redStart: "01/26", redEnd: "01/26", updatedBy: "System", updatedAt: "14/11/2026 13:14" }
-    ];
+    let projects = loadCache();
+    let serverVersion = 1;          // 1 = Apps Script lama (hanya saveAll), 2 = Apps Script baru (upsert/delete per project)
+    let pullSeq = 0;                 // nomor urut request pull, supaya respons lama tidak menimpa yang baru
+    let writeGen = 0;                // naik setiap ada penulisan; pull yang dimulai sebelum penulisan diabaikan
+    let pendingWrites = 0;
+    let writeChain = Promise.resolve();
+    let lastSyncOk = false;
 
-    let projects = JSON.parse(localStorage.getItem("sdo_projects_v7")) || DEFAULT_PROJECTS;
-    let isEditingModalOpen = false;
-    let isSavingToSheets = false;
-    let lastSaveCompletedTime = 0;
-    let autoSaveTimer = null;
+    // State modal edit
+    const modal = { open: false, id: null, isNew: false, base: null, saving: false, deletedRemotely: false };
 
-    function setBadge(text, color = "emerald") {
-      const badge = document.getElementById("syncStatusBadge");
-      if (!badge) return;
-      if (color === "emerald") {
-        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
-      } else if (color === "blue") {
-        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300";
-      } else {
-        badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300";
-      }
-      badge.innerText = text;
-    }
-
-    // Tarik otomatis dari Google Sheets Anda setiap 4 detik tanpa perlu klik apa pun
-    async function pullFromGoogleSheetsAuto() {
-      // Jangan timpa saat user sedang mengetik atau baru saja menyimpan dalam 4 detik terakhir
-      if (isEditingModalOpen || isSavingToSheets || (Date.now() - lastSaveCompletedTime < 4000)) return;
+    function loadCache() {
       try {
-        const res = await fetch(APPS_SCRIPT_URL + "?t=" + Date.now(), { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.projects) && data.projects.length > 0) {
-            const incomingJSON = JSON.stringify(data.projects);
-            const currentJSON = JSON.stringify(projects);
-            if (incomingJSON !== currentJSON) {
-              projects = data.projects;
-              localStorage.setItem("sdo_projects_v7", incomingJSON);
-              renderAll();
-            }
-            setBadge("🟢 Live Sync Google Sheets Aktif (Otomatis 2 Arah)", "emerald");
-          }
-        }
-      } catch (err) {
-        console.warn("Auto-pull Sheets info:", err);
-      }
+        const raw = JSON.parse(safeStorageGet(CACHE_KEY) || "null");
+        if (Array.isArray(raw)) return raw.map(normalizeProject).filter(p => p.id);
+      } catch (e) {}
+      return [];
     }
 
-    // Kirim perubahan langsung ke Google Sheets Anda secara otomatis
-    async function pushToGoogleSheetsAuto() {
-      isSavingToSheets = true;
-      const ind = document.getElementById("modalAutoSaveIndicator");
-      if (ind) ind.innerText = "⏳ Menyimpan ke Google Sheets...";
-      setBadge("⏳ Menyimpan otomatis ke Google Sheets...", "blue");
-
-      try {
-        await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "saveAll", projects: projects })
-        });
-        lastSaveCompletedTime = Date.now();
-        if (ind) ind.innerText = "✓ Tersimpan Otomatis di Google Sheets";
-        setBadge("🟢 Tersimpan Otomatis di Google Sheets SDO", "emerald");
-      } catch (err) {
-        if (ind) ind.innerText = "✓ Tersimpan di Browser";
-        setBadge("🟡 Tersimpan Lokal (Cek Koneksi)", "amber");
-      } finally {
-        isSavingToSheets = false;
-      }
+    function saveCache() {
+      safeStorageSet(CACHE_KEY, JSON.stringify(projects));
     }
 
-    // Dipanggil otomatis saat jari mengetik tanpa perlu klik tombol Simpan
-    function triggerInstantAutoSave() {
-      const id = document.getElementById("edit_id").value;
-      if (!id) return;
-      const nowStr = new Date().toLocaleString("id-ID");
-      const updatedObj = {
-        id,
-        name: document.getElementById("edit_name").value || "Project Baru",
-        panel: document.getElementById("edit_panel").value,
-        status: document.getElementById("edit_status").value,
-        score: document.getElementById("edit_score").value || "-",
-        waBadge: document.getElementById("edit_waBadge").value || "-",
-        blueText: document.getElementById("edit_blueText").value || "-",
-        blueStart: document.getElementById("edit_blueStart").value.trim(),
-        blueEnd: document.getElementById("edit_blueEnd").value.trim(),
-        orangeText: document.getElementById("edit_orangeText").value || "-",
-        orangeStart: document.getElementById("edit_orangeStart").value.trim(),
-        orangeEnd: document.getElementById("edit_orangeEnd").value.trim(),
-        greyText: document.getElementById("edit_greyText").value || "-",
-        greyStart: document.getElementById("edit_greyStart").value.trim(),
-        greyEnd: document.getElementById("edit_greyEnd").value.trim(),
-        redText: document.getElementById("edit_redText").value || "-",
-        redStart: document.getElementById("edit_redStart").value.trim(),
-        redEnd: document.getElementById("edit_redEnd").value.trim(),
-        updatedBy: document.getElementById("edit_updatedBy").value || "Team SDO",
-        updatedAt: nowStr
+    // =====================================================================
+    // STATUS / TOAST
+    // =====================================================================
+    function setBadge(text, color) {
+      const styles = {
+        emerald: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        blue: "bg-blue-100 text-blue-800 border-blue-300",
+        amber: "bg-amber-100 text-amber-800 border-amber-300",
+        red: "bg-red-100 text-red-800 border-red-300"
       };
-
-      const existingIndex = projects.findIndex(x => x.id === id);
-      if (existingIndex >= 0) {
-        projects[existingIndex] = updatedObj;
-      } else {
-        projects.push(updatedObj);
-      }
-
-      localStorage.setItem("sdo_projects_v7", JSON.stringify(projects));
-      renderAll();
-
-      const ind = document.getElementById("modalAutoSaveIndicator");
-      if (ind) ind.innerText = "✍️ Mengetik...";
-
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        pushToGoogleSheetsAuto();
-      }, 400);
+      const badge = $("syncStatusBadge");
+      badge.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border " + (styles[color] || styles.emerald);
+      badge.textContent = text;
     }
 
+    function refreshIdleBadge() {
+      if (pendingWrites > 0) return;
+      if (lastSyncOk) setBadge("🟢 Tersinkron dengan Google Sheets · " + timeStr(), "emerald");
+    }
+
+    let toastTimer = null;
+    function toast(msg, type = "ok") {
+      const el = $("toast");
+      const styles = {
+        ok: "bg-emerald-600 text-white",
+        warn: "bg-amber-500 text-slate-900",
+        err: "bg-red-600 text-white"
+      };
+      el.className = "no-export fixed bottom-4 right-4 z-[60] max-w-sm text-xs font-semibold px-4 py-3 rounded-lg shadow-lg " + (styles[type] || styles.ok);
+      el.textContent = msg;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add("hidden"), type === "err" ? 7000 : 3500);
+    }
+
+    // =====================================================================
+    // KOMUNIKASI DENGAN GOOGLE SHEETS
+    // =====================================================================
+    async function fetchServer() {
+      const res = await fetch(APPS_SCRIPT_URL + "?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      if (!data || !Array.isArray(data.projects)) throw new Error("Format data dari Google Sheets tidak valid");
+      if (data.status && data.status !== "ok") throw new Error(data.message || "Google Sheets mengembalikan error");
+      serverVersion = Number(data.version) >= 2 ? 2 : 1;
+      return data.projects.map(normalizeProject).filter(p => p.id);
+    }
+
+    async function pull() {
+      if (pendingWrites > 0) return;          // jangan tarik saat sedang menulis — hasilnya bisa setengah jadi
+      const seq = ++pullSeq;
+      const gen = writeGen;
+      try {
+        const list = await fetchServer();
+        // Abaikan respons yang sudah basi (ada pull lebih baru, atau ada penulisan sejak pull ini dimulai)
+        if (seq !== pullSeq || gen !== writeGen || pendingWrites > 0) return;
+        lastSyncOk = true;
+        applyServerList(list);
+        refreshIdleBadge();
+      } catch (err) {
+        if (seq !== pullSeq) return;
+        lastSyncOk = false;
+        console.warn("Pull gagal:", err);
+        if (pendingWrites === 0) setBadge("🔴 Gagal terhubung ke Google Sheets — menampilkan data terakhir", "red");
+      }
+    }
+
+    function applyServerList(list) {
+      const changedIds = new Set();
+      const oldById = new Map(projects.map(p => [p.id, JSON.stringify(p)]));
+      list.forEach(p => { if (oldById.get(p.id) !== JSON.stringify(p)) changedIds.add(p.id); });
+      const sameOrder = projects.length === list.length && projects.every((p, i) => p.id === list[i].id);
+
+      projects = list;
+      saveCache();
+      if (changedIds.size > 0 || !sameOrder) renderAll(changedIds);
+      if (modal.open) syncModalWithServer();
+    }
+
+    // Terapkan satu operasi ke sebuah daftar project (dipakai untuk tampilan instan & mode kompatibilitas)
+    function applyOp(list, op) {
+      const out = list.map(p => ({ ...p }));
+      if (op.action === "delete") return out.filter(p => p.id !== op.id);
+      const idx = out.findIndex(p => p.id === op.id);
+      if (idx >= 0) Object.assign(out[idx], op.changes);
+      else out.push(normalizeProject({ ...(op.project || {}), ...op.changes, id: op.id }));
+      return out;
+    }
+
+    function opApplied(list, op) {
+      const p = list.find(x => x.id === op.id);
+      if (op.action === "delete") return !p;
+      if (!p) return false;
+      return Object.keys(op.changes).every(k => String(p[k] ?? "") === String(op.changes[k] ?? ""));
+    }
+
+    // Semua penulisan dijalankan berurutan (antrian), tidak pernah paralel
+    function enqueueWrite(op) {
+      pendingWrites++;
+      writeGen++;
+      setBadge("⏳ Menyimpan ke Google Sheets...", "blue");
+      const job = writeChain.then(() => runWrite(op));
+      writeChain = job.catch(() => {});
+      return job.finally(() => {
+        pendingWrites--;
+        writeGen++;
+        refreshIdleBadge();
+      });
+    }
+
+    async function runWrite(op) {
+      if (serverVersion >= 2) {
+        // Apps Script baru: hanya mengirim perubahan 1 project, diproses atomik di server (LockService)
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(op)
+        });
+        const data = await res.json();
+        if (!data || data.status !== "ok") throw new Error((data && data.message) || "Gagal menyimpan");
+        if (Array.isArray(data.projects)) applyServerList(data.projects.map(normalizeProject).filter(p => p.id));
+        lastSyncOk = true;
+        return;
+      }
+
+      // Mode kompatibilitas (Apps Script lama hanya kenal "saveAll"):
+      // ambil data TERBARU dulu, terapkan hanya perubahan kita, lalu simpan, lalu verifikasi.
+      const latest = await fetchServer();
+      if (serverVersion >= 2) return runWrite(op); // ternyata server sudah versi baru
+      const merged = applyOp(latest, op);
+      await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "saveAll", projects: merged })
+      });
+      const after = await fetchServer();
+      if (!opApplied(after, op)) {
+        applyServerList(after);
+        throw new Error("Perubahan tidak tercatat di Google Sheets (kemungkinan bentrok dengan pengguna lain). Silakan coba lagi.");
+      }
+      lastSyncOk = true;
+      applyServerList(after);
+    }
+
+    // =====================================================================
+    // RENDER DASHBOARD
+    // =====================================================================
     function ensureTimelineCoversAllProjects() {
       let latestIdx = ALL_POSSIBLE_MONTHS.indexOf(maxTimelineMonth);
       projects.forEach(p => {
-        [p.blueEnd, p.orangeEnd, p.greyEnd, p.redEnd].forEach(m => {
-          const idx = ALL_POSSIBLE_MONTHS.indexOf((m || "").trim());
+        BARS.forEach(b => {
+          if (isBlank(p[b.key + "Text"])) return;
+          const idx = ALL_POSSIBLE_MONTHS.indexOf(normalizeMonth(p[b.key + "End"]) || "");
           if (idx > latestIdx) latestIdx = idx;
         });
       });
       const finalEndMonth = ALL_POSSIBLE_MONTHS[Math.max(16, latestIdx)] || "12/27";
       MONTHS = generateMonthsRange("12/25", finalEndMonth);
       document.documentElement.style.setProperty("--cols", MONTHS.length);
-      const sel = document.getElementById("maxMonthFilter");
-      if (sel && Array.from(sel.options).some(o => o.value === finalEndMonth)) {
-        sel.value = finalEndMonth;
-      }
-    }
-
-    function updateMaxTimelineMonth(val) {
-      maxTimelineMonth = val;
-      localStorage.setItem("sdo_max_month", val);
-      ensureTimelineCoversAllProjects();
-      renderMonthHeaders();
-      renderAll();
-    }
-
-    function getMonthIdx(m) {
-      const idx = MONTHS.indexOf((m || "").trim());
-      return idx === -1 ? 0 : idx;
+      const sel = $("maxMonthFilter");
+      if (Array.from(sel.options).some(o => o.value === finalEndMonth)) sel.value = finalEndMonth;
     }
 
     function renderMonthHeaders() {
       ensureTimelineCoversAllProjects();
       const html = MONTHS.map(m => `<div class="py-1 border-l border-dashed border-slate-300">${m}</div>`).join("");
-      document.getElementById("leftMonthsHeader").innerHTML = html;
-      document.getElementById("rightMonthsHeader").innerHTML = html;
-      document.getElementById("monthsDatalist").innerHTML = ALL_POSSIBLE_MONTHS.map(m => `<option value="${m}">`).join("");
+      $("leftMonthsHeader").innerHTML = html;
+      $("rightMonthsHeader").innerHTML = html;
     }
 
-    function makeGridLines() {
-      return `<div class="grid-lines">${MONTHS.map(() => `<div class="grid-line"></div>`).join("")}</div>`;
+    // Kolom grid (1-based) untuk sebuah bulan; bulan di luar timeline dijepit ke tepi
+    function monthCol(m, fallback) {
+      const n = monthToNum(m);
+      if (n == null) return fallback;
+      const first = monthToNum(MONTHS[0]);
+      return Math.min(Math.max(n - first, 0), MONTHS.length - 1) + 1;
+    }
+
+    function spanOf(start, end) {
+      const s = monthCol(start, 1);
+      const e = Math.max(s, monthCol(end, s));
+      return { s, e };
     }
 
     function createBarHTML(text, startMonth, endMonth, bgClass, textClass = "text-white") {
-      if (!text || text.trim() === "-" || text.trim() === "") return "";
-      const s = getMonthIdx(startMonth) + 1;
-      const e = Math.max(s, getMonthIdx(endMonth) + 1);
-      return `<div class="bar-item ${bgClass} ${textClass} text-[10px]" style="grid-column: ${s} / ${e + 1};">${text}</div>`;
+      if (isBlank(text)) return "";
+      const { s, e } = spanOf(startMonth, endMonth);
+      return `<div class="bar-item ${bgClass} ${textClass} text-[10px]" style="grid-column: ${s} / ${e + 1};">${escapeHtml(text)}</div>`;
     }
 
     function statusBadgeHTML(status) {
-      if (status === "On Track") return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-xs"></span>On Track</div>`;
-      if (status === "At Risk") return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full bg-amber-400 inline-block shadow-xs"></span>At Risk</div>`;
-      return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full bg-red-500 inline-block shadow-xs"></span>Off Track</div>`;
+      const color = status === "On Track" ? "bg-emerald-500" : status === "At Risk" ? "bg-amber-400" : "bg-red-500";
+      const label = status === "On Track" || status === "At Risk" ? status : "Off Track";
+      return `<div class="flex items-center gap-1 text-[11px] font-semibold text-slate-700"><span class="w-3 h-3 rounded-full ${color} inline-block shadow-xs"></span>${label}</div>`;
     }
 
-    function renderProjectRow(p, showWaBadge) {
-      const hasScore = p.score && p.score !== "-";
-      const hasWa = showWaBadge && p.waBadge && p.waBadge !== "-";
+    function renderProjectRow(p, showWaBadge, flash) {
+      const hasScore = !isBlank(p.score);
+      const hasWa = showWaBadge && !isBlank(p.waBadge);
 
-      const oValid = p.orangeText && p.orangeText !== "-";
-      const gValid = p.greyText && p.greyText !== "-";
+      const oValid = !isBlank(p.orangeText);
+      const gValid = !isBlank(p.greyText);
+      const orangeBar = () => createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900");
+      const greyBar = () => createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800");
       let middleRowHTML = "";
 
       if (oValid && gValid) {
-        const oEnd = getMonthIdx(p.orangeEnd);
-        const gStart = getMonthIdx(p.greyStart);
-        if (gStart > oEnd) {
-          middleRowHTML = `<div class="timeline-grid gap-y-1">${createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900")}${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>`;
+        if (monthCol(p.greyStart, 1) > monthCol(p.orangeEnd, 1)) {
+          middleRowHTML = `<div class="timeline-grid gap-y-1">${orangeBar()}${greyBar()}</div>`;
         } else {
-          middleRowHTML = `
-            <div class="timeline-grid">${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>
-            <div class="timeline-grid">${createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900")}</div>
-          `;
+          middleRowHTML = `<div class="timeline-grid">${greyBar()}</div><div class="timeline-grid">${orangeBar()}</div>`;
         }
       } else if (oValid) {
-        middleRowHTML = `<div class="timeline-grid">${createBarHTML(p.orangeText, p.orangeStart, p.orangeEnd, "bg-[#fb923c]", "text-slate-900")}</div>`;
+        middleRowHTML = `<div class="timeline-grid">${orangeBar()}</div>`;
       } else if (gValid) {
-        middleRowHTML = `<div class="timeline-grid">${createBarHTML(p.greyText, p.greyStart, p.greyEnd, "bg-slate-200 border border-slate-300", "text-slate-800")}</div>`;
+        middleRowHTML = `<div class="timeline-grid">${greyBar()}</div>`;
       }
 
       let redRowHTML = "";
-      if (p.redText && p.redText !== "-") {
+      if (!isBlank(p.redText)) {
         if (p.redText.includes("|")) {
           const items = p.redText.split("|").map(x => x.trim()).filter(Boolean);
-          const s = getMonthIdx(p.redStart) + 1;
-          const e = Math.max(s, getMonthIdx(p.redEnd) + 1);
-          redRowHTML = `<div class="timeline-grid"><div style="grid-column: ${s} / ${e + 1};" class="space-y-1 z-10">${items.map(item => `<div class="bg-[#ff5a5f] text-slate-900 font-bold text-[10px] px-2 py-1 rounded shadow-xs text-center">${item}</div>`).join("")}</div></div>`;
+          const { s, e } = spanOf(p.redStart, p.redEnd);
+          redRowHTML = `<div class="timeline-grid"><div style="grid-column: ${s} / ${e + 1};" class="space-y-1 z-10">${items.map(item => `<div class="bg-[#ff5a5f] text-slate-900 font-bold text-[10px] px-2 py-1 rounded shadow-xs text-center">${escapeHtml(item)}</div>`).join("")}</div></div>`;
         } else {
           redRowHTML = `<div class="timeline-grid">${createBarHTML(p.redText, p.redStart, p.redEnd, "bg-[#ff5a5f]", "text-slate-900")}</div>`;
         }
       }
 
+      const tip = p.updatedAt ? `Terakhir diubah: ${p.updatedAt}${p.updatedBy ? " oleh " + p.updatedBy : ""}` : "Klik untuk edit";
+
       return `
-        <div onclick="openEditModal('${p.id}')" class="group grid grid-cols-[150px_1fr] gap-2 items-start p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition border border-transparent hover:border-blue-200">
+        <div data-project-id="${escapeHtml(p.id)}" title="${escapeHtml(tip)}" class="${flash ? "row-flash " : ""}group grid grid-cols-[150px_1fr] gap-2 items-start p-2 rounded-xl hover:bg-blue-50/50 cursor-pointer transition border border-transparent hover:border-blue-200">
           <div class="pr-2 space-y-1">
-            <div class="font-extrabold text-xs text-slate-900 group-hover:text-blue-700 leading-snug">${p.name}</div>
+            <div class="font-extrabold text-xs text-slate-900 group-hover:text-blue-700 leading-snug">${escapeHtml(p.name || "(Tanpa nama)")}</div>
             ${statusBadgeHTML(p.status)}
-            ${hasScore ? `<div class="text-[11px] font-semibold text-slate-600">Score : ${p.score}</div>` : ""}
-            ${hasWa ? `<div class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">${p.waBadge}</div>` : ""}
+            ${hasScore ? `<div class="text-[11px] font-semibold text-slate-600">Score : ${escapeHtml(p.score)}</div>` : ""}
+            ${hasWa ? `<div class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">${escapeHtml(p.waBadge)}</div>` : ""}
           </div>
           <div class="relative py-1 space-y-1.5 min-h-[70px]">
-            ${makeGridLines()}
+            <div class="grid-lines">${MONTHS.map(() => `<div class="grid-line"></div>`).join("")}</div>
             <div class="timeline-grid">${createBarHTML(p.blueText, p.blueStart, p.blueEnd, "bg-[#004aad]", "text-white text-[11px]")}</div>
             ${middleRowHTML}
             ${redRowHTML}
@@ -564,120 +611,364 @@
       `;
     }
 
-    function renderAll() {
+    let firstRender = true;
+    function renderAll(changedIds) {
       renderMonthHeaders();
-      const showWa = document.getElementById("toggleWaBadge").checked;
-      const leftList = projects.filter(p => p.panel === "left");
+      const showWa = $("toggleWaBadge").checked;
+      const flashIds = firstRender ? new Set() : (changedIds || new Set());
+      firstRender = false;
+      const row = p => renderProjectRow(p, showWa, flashIds.has(p.id));
+      const empty = `<div class="text-xs text-slate-400 italic p-3">Belum ada project di panel ini.</div>`;
+      const leftList = projects.filter(p => p.panel !== "right");
       const rightList = projects.filter(p => p.panel === "right");
+      $("leftProjectsContainer").innerHTML = leftList.length ? leftList.map(row).join("") : empty;
+      $("rightProjectsContainer").innerHTML = rightList.length ? rightList.map(row).join("") : empty;
+    }
 
-      document.getElementById("leftProjectsContainer").innerHTML = leftList.map(p => renderProjectRow(p, showWa)).join("");
-      document.getElementById("rightProjectsContainer").innerHTML = rightList.map(p => renderProjectRow(p, showWa)).join("");
+    function updateMaxTimelineMonth(val) {
+      maxTimelineMonth = val;
+      safeStorageSet(MAX_MONTH_KEY, val);
+      renderAll();
+    }
+
+    // =====================================================================
+    // MODAL EDIT
+    // =====================================================================
+    function buildBarSections() {
+      $("barSections").innerHTML = BARS.map(b => `
+        <div class="p-3 rounded-xl border space-y-2 ${b.box}">
+          <div class="font-bold ${b.head}">${b.title}</div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="md:col-span-2">
+              <label class="block text-slate-600 mb-0.5">Teks Bar</label>
+              <input type="text" data-field="${b.key}Text" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white">
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Mulai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" data-field="${b.key}Start" placeholder="01/26" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
+            </div>
+            <div>
+              <label class="block text-slate-600 mb-0.5">Bulan Selesai (MM/YY)</label>
+              <input type="text" list="monthsDatalist" data-field="${b.key}End" placeholder="09/27" class="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold">
+            </div>
+          </div>
+        </div>
+      `).join("");
+      $("monthsDatalist").innerHTML = ALL_POSSIBLE_MONTHS.map(m => `<option value="${m}">`).join("");
+    }
+
+    function fieldInput(f) {
+      return $("editForm").querySelector(`[data-field="${f}"]`);
+    }
+
+    function readForm() {
+      const v = {};
+      FIELDS.forEach(f => {
+        let val = fieldInput(f).value;
+        if (MONTH_FIELDS.includes(f)) val = normalizeMonth(val) || val.trim();
+        v[f] = val;
+      });
+      return v;
+    }
+
+    function fillForm(p) {
+      FIELDS.forEach(f => { fieldInput(f).value = p[f] ?? ""; });
+    }
+
+    function dirtyFields() {
+      if (!modal.base) return [];
+      const v = readForm();
+      return FIELDS.filter(f => v[f] !== modal.base[f]);
+    }
+
+    function updateModalIndicators() {
+      const dirty = new Set(dirtyFields());
+      FIELDS.forEach(f => fieldInput(f).classList.toggle("field-dirty", dirty.has(f)));
+      const badge = $("modalStateBadge");
+      if (modal.saving) {
+        badge.textContent = "⏳ Menyimpan...";
+        badge.className = "text-[10px] bg-blue-500/20 text-blue-200 border border-blue-400/30 px-2 py-0.5 rounded-full font-semibold";
+      } else if (modal.isNew) {
+        badge.textContent = "Project baru — belum disimpan";
+        badge.className = "text-[10px] bg-amber-500/20 text-amber-200 border border-amber-400/30 px-2 py-0.5 rounded-full font-semibold";
+      } else if (dirty.size) {
+        badge.textContent = `${dirty.size} perubahan belum disimpan`;
+        badge.className = "text-[10px] bg-amber-500/20 text-amber-200 border border-amber-400/30 px-2 py-0.5 rounded-full font-semibold";
+      } else {
+        badge.textContent = "Belum ada perubahan";
+        badge.className = "text-[10px] bg-slate-500/20 text-slate-200 border border-slate-400/30 px-2 py-0.5 rounded-full font-semibold";
+      }
+    }
+
+    function showModalAlert(msg, type = "warn") {
+      const el = $("modalAlert");
+      if (!msg) { el.classList.add("hidden"); return; }
+      el.className = "p-3 rounded-lg border text-xs font-semibold " + (type === "err"
+        ? "bg-red-50 border-red-300 text-red-800"
+        : "bg-amber-50 border-amber-300 text-amber-900");
+      el.textContent = msg;
+    }
+
+    function showModal() {
+      $("editModal").classList.remove("hidden");
+      $("editModal").classList.add("flex");
+      modal.open = true;
+      $("edit_updatedBy").value = safeStorageGet(NAME_KEY) || "";
+      showModalAlert(null);
+      updateModalIndicators();
+      setTimeout(() => fieldInput("name").focus(), 50);
     }
 
     function openEditModal(id) {
       const p = projects.find(x => x.id === id);
       if (!p) return;
-      isEditingModalOpen = true;
-      document.getElementById("modalTitle").innerText = "Edit Project: " + p.name;
-      document.getElementById("edit_id").value = p.id;
-      document.getElementById("edit_name").value = p.name;
-      document.getElementById("edit_panel").value = p.panel;
-      document.getElementById("edit_status").value = p.status;
-      document.getElementById("edit_score").value = p.score || "-";
-      document.getElementById("edit_waBadge").value = p.waBadge || "-";
-      document.getElementById("edit_updatedBy").value = p.updatedBy || "";
-
-      document.getElementById("edit_blueText").value = p.blueText || "-";
-      document.getElementById("edit_blueStart").value = p.blueStart || "12/25";
-      document.getElementById("edit_blueEnd").value = p.blueEnd || "12/26";
-
-      document.getElementById("edit_orangeText").value = p.orangeText || "-";
-      document.getElementById("edit_orangeStart").value = p.orangeStart || "12/25";
-      document.getElementById("edit_orangeEnd").value = p.orangeEnd || "12/26";
-
-      document.getElementById("edit_greyText").value = p.greyText || "-";
-      document.getElementById("edit_greyStart").value = p.greyStart || "12/25";
-      document.getElementById("edit_greyEnd").value = p.greyEnd || "12/26";
-
-      document.getElementById("edit_redText").value = p.redText || "-";
-      document.getElementById("edit_redStart").value = p.redStart || "12/25";
-      document.getElementById("edit_redEnd").value = p.redEnd || "12/26";
-
-      document.getElementById("editModal").classList.remove("hidden");
-      document.getElementById("editModal").classList.add("flex");
+      Object.assign(modal, { id, isNew: false, base: { ...p }, saving: false, deletedRemotely: false });
+      $("modalTitle").textContent = "Edit Project: " + (p.name || "(Tanpa nama)");
+      $("btnDelete").classList.remove("hidden");
+      $("lastUpdatedInfo").textContent = p.updatedAt ? `Terakhir diubah ${p.updatedAt}${p.updatedBy ? " oleh " + p.updatedBy : ""}.` : "";
+      fillForm(p);
+      showModal();
     }
 
     function openAddProjectModal() {
-      isEditingModalOpen = true;
-      const newId = "proj_" + Date.now();
-      document.getElementById("modalTitle").innerText = "Tambah Project Baru";
-      document.getElementById("edit_id").value = newId;
-      document.getElementById("edit_name").value = "Project Baru";
-      document.getElementById("edit_panel").value = "left";
-      document.getElementById("edit_status").value = "On Track";
-      document.getElementById("edit_score").value = "100%";
-      document.getElementById("edit_waBadge").value = "-";
-      document.getElementById("edit_updatedBy").value = "";
-
-      document.getElementById("edit_blueText").value = "Total Fitur Pekerjaan 12 Bulan = 100 Fitur";
-      document.getElementById("edit_blueStart").value = "09/26";
-      document.getElementById("edit_blueEnd").value = "09/27";
-
-      document.getElementById("edit_orangeText").value = "SIK Yang Sudah Rilis = 50 Fitur (SIK 1,2)";
-      document.getElementById("edit_orangeStart").value = "09/26";
-      document.getElementById("edit_orangeEnd").value = "03/27";
-
-      document.getElementById("edit_greyText").value = "Sisa fitur yang belum rilis = 50 Fitur";
-      document.getElementById("edit_greyStart").value = "04/27";
-      document.getElementById("edit_greyEnd").value = "09/27";
-
-      document.getElementById("edit_redText").value = "Fitur yang Go Live = 50 Fitur (SIK 1,2)";
-      document.getElementById("edit_redStart").value = "09/26";
-      document.getElementById("edit_redEnd").value = "03/27";
-
-      document.getElementById("editModal").classList.remove("hidden");
-      document.getElementById("editModal").classList.add("flex");
-      triggerInstantAutoSave();
+      const id = "proj_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      const draft = normalizeProject({
+        id, name: "Project Baru", panel: "left", status: "On Track", score: "-", waBadge: "-",
+        blueText: "Total Fitur Pekerjaan 12 Bulan = 100 Fitur", blueStart: "09/26", blueEnd: "09/27",
+        orangeText: "-", orangeStart: "09/26", orangeEnd: "09/26",
+        greyText: "-", greyStart: "09/26", greyEnd: "09/26",
+        redText: "-", redStart: "09/26", redEnd: "09/26"
+      });
+      Object.assign(modal, { id, isNew: true, base: { ...draft }, saving: false, deletedRemotely: false });
+      $("modalTitle").textContent = "Tambah Project Baru";
+      $("btnDelete").classList.add("hidden");
+      $("lastUpdatedInfo").textContent = "";
+      fillForm(draft);
+      showModal();
+      fieldInput("name").select();
     }
 
-    function closeEditModal() {
-      isEditingModalOpen = false;
-      document.getElementById("editModal").classList.add("hidden");
-      document.getElementById("editModal").classList.remove("flex");
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      pushToGoogleSheetsAuto();
+    function hideModal() {
+      modal.open = false;
+      modal.base = null;
+      $("editModal").classList.add("hidden");
+      $("editModal").classList.remove("flex");
+    }
+
+    function requestCloseModal() {
+      if (modal.saving) return;
+      if (dirtyFields().length && !modal.isNew) {
+        if (!confirm("Ada perubahan yang belum disimpan. Tutup dan buang perubahan?")) return;
+      }
+      hideModal();
+    }
+
+    // Saat modal terbuka dan data server berubah: kolom yang TIDAK sedang Anda ubah ikut diperbarui,
+    // kolom yang sedang Anda ubah dibiarkan (akan dicek bentrok saat menyimpan).
+    function syncModalWithServer() {
+      if (modal.isNew || modal.saving || !modal.base) return;
+      const p = projects.find(x => x.id === modal.id);
+      if (!p) {
+        if (!modal.deletedRemotely) {
+          modal.deletedRemotely = true;
+          showModalAlert("⚠️ Project ini baru saja dihapus oleh pengguna lain. Jika Anda menyimpan, project akan dibuat ulang.", "warn");
+        }
+        return;
+      }
+      if (modal.deletedRemotely) { modal.deletedRemotely = false; showModalAlert(null); }
+      const current = readForm();
+      const updated = [];
+      FIELDS.forEach(f => {
+        if (p[f] === modal.base[f]) return;
+        const input = fieldInput(f);
+        if (current[f] === modal.base[f] && document.activeElement !== input) {
+          input.value = p[f];
+          modal.base[f] = p[f];
+          updated.push(FIELD_LABELS[f]);
+        }
+      });
+      if (updated.length) {
+        showModalAlert(`ℹ️ ${p.updatedBy || "Pengguna lain"} baru saja mengubah: ${updated.join(", ")}. Form sudah diperbarui otomatis.`, "warn");
+        $("lastUpdatedInfo").textContent = p.updatedAt ? `Terakhir diubah ${p.updatedAt}${p.updatedBy ? " oleh " + p.updatedBy : ""}.` : "";
+      }
+      updateModalIndicators();
+    }
+
+    function validateForm(values) {
+      const errors = [];
+      FIELDS.forEach(f => fieldInput(f).classList.remove("field-invalid"));
+      if (!values.name.trim()) { errors.push("Nama project wajib diisi."); fieldInput("name").classList.add("field-invalid"); }
+      BARS.forEach(b => {
+        if (isBlank(values[b.key + "Text"])) return;
+        const sF = b.key + "Start", eF = b.key + "End";
+        const s = monthToNum(values[sF]), e = monthToNum(values[eF]);
+        if (s == null) { errors.push(`${FIELD_LABELS[sF]}: format harus MM/YY (contoh 01/26).`); fieldInput(sF).classList.add("field-invalid"); }
+        if (e == null) { errors.push(`${FIELD_LABELS[eF]}: format harus MM/YY (contoh 09/27).`); fieldInput(eF).classList.add("field-invalid"); }
+        if (s != null && e != null && e < s) { errors.push(`${FIELD_LABELS[eF]} tidak boleh sebelum ${FIELD_LABELS[sF]}.`); fieldInput(eF).classList.add("field-invalid"); }
+      });
+      return errors;
+    }
+
+    function setSaving(on) {
+      modal.saving = on;
+      $("btnSave").disabled = on;
+      $("btnSave").textContent = on ? "⏳ Menyimpan..." : "💾 Simpan";
+      updateModalIndicators();
+    }
+
+    async function saveModal() {
+      if (modal.saving || !modal.open) return;
+      const values = readForm();
+      const errors = validateForm(values);
+      if (errors.length) { showModalAlert("Periksa kembali isian: " + errors.join(" "), "err"); return; }
+
+      const editorName = $("edit_updatedBy").value.trim();
+      if (!editorName) {
+        showModalAlert("Isi dulu kolom \"Nama Anda\" supaya tim tahu siapa yang mengubah.", "err");
+        $("edit_updatedBy").classList.add("field-invalid");
+        $("edit_updatedBy").focus();
+        return;
+      }
+      $("edit_updatedBy").classList.remove("field-invalid");
+      safeStorageSet(NAME_KEY, editorName);
+
+      const changed = modal.isNew ? FIELDS.slice() : dirtyFields();
+      if (!changed.length && !modal.deletedRemotely) { hideModal(); return; }
+
+      setSaving(true);
+      showModalAlert(null);
+      try {
+        // 1) Cek data terbaru di server untuk mendeteksi bentrok dengan pengguna lain
+        const latest = await fetchServer();
+        const cur = latest.find(x => x.id === modal.id);
+        if (!modal.isNew && cur) {
+          const conflicts = changed.filter(f => cur[f] !== modal.base[f] && cur[f] !== values[f]);
+          if (conflicts.length) {
+            const detail = conflicts.map(f => `• ${FIELD_LABELS[f]}: sekarang "${cur[f]}" (Anda: "${values[f]}")`).join("\n");
+            const ok = confirm(`Kolom berikut juga baru saja diubah oleh ${cur.updatedBy || "pengguna lain"}:\n\n${detail}\n\nOK = timpa dengan isian Anda\nCancel = batal, saya cek dulu`);
+            if (!ok) {
+              conflicts.forEach(f => { fieldInput(f).value = cur[f]; modal.base[f] = cur[f]; });
+              showModalAlert("Isian pada kolom yang bentrok sudah diganti dengan data terbaru dari server. Periksa lalu simpan lagi bila perlu.", "warn");
+              setSaving(false);
+              return;
+            }
+          }
+        }
+
+        // 2) Kirim HANYA kolom yang berubah (project baru / terhapus: kirim lengkap)
+        const changes = {};
+        (cur ? changed : FIELDS).forEach(f => { changes[f] = values[f]; });
+        changes.updatedBy = editorName;
+        changes.updatedAt = nowStr();
+        const op = { action: "upsert", id: modal.id, changes, project: cur ? null : { id: modal.id, ...values } };
+
+        // Tampilkan langsung di layar, lalu simpan ke server
+        projects = applyOp(projects, op);
+        renderAll(new Set([op.id]));
+
+        await enqueueWrite(op);
+        setSaving(false);
+        hideModal();
+        toast("✓ Tersimpan ke Google Sheets");
+      } catch (err) {
+        console.error(err);
+        setSaving(false);
+        showModalAlert("❌ Gagal menyimpan: " + err.message + " — Data Anda masih ada di form, silakan coba Simpan lagi.", "err");
+        pull();
+      }
     }
 
     async function deleteCurrentProject() {
-      const id = document.getElementById("edit_id").value;
-      if (!confirm("Hapus baris project ini dari Web & Google Sheets?")) return;
-      projects = projects.filter(x => x.id !== id);
-      localStorage.setItem("sdo_projects_v7", JSON.stringify(projects));
-      renderAll();
-      closeEditModal();
-    }
-
-    async function exportJPG(target) {
-      let el = document.getElementById("captureArea");
-      let filename = "Monitoring_Progress_Project_SDO_Full.jpg";
-      if (target === "left") {
-        el = document.getElementById("leftPanelCard");
-        filename = "Monitoring_Progress_Project_SDO_Kiri.jpg";
-      } else if (target === "right") {
-        el = document.getElementById("rightPanelCard");
-        filename = "Monitoring_Progress_Project_SDO_Kanan.jpg";
+      if (modal.isNew || modal.saving) return;
+      const p = projects.find(x => x.id === modal.id) || modal.base;
+      if (!confirm(`Hapus project "${p.name}" dari Web & Google Sheets?`)) return;
+      const op = { action: "delete", id: modal.id };
+      setSaving(true);
+      try {
+        projects = applyOp(projects, op);
+        renderAll();
+        await enqueueWrite(op);
+        setSaving(false);
+        hideModal();
+        toast("🗑️ Project dihapus");
+      } catch (err) {
+        console.error(err);
+        setSaving(false);
+        showModalAlert("❌ Gagal menghapus: " + err.message, "err");
+        pull();
       }
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#f1f5f9", useCORS: true });
-      const link = document.createElement("a");
-      link.download = filename;
-      link.href = canvas.toDataURL("image/jpeg", 0.95);
-      link.click();
     }
 
-    // Init & Auto-Sync langsung ke Google Sheets Anda setiap 4 detik tanpa klik apa pun!
+    // =====================================================================
+    // EXPORT JPG
+    // =====================================================================
+    async function exportJPG(target) {
+      const map = {
+        both: ["captureArea", "Monitoring_Progress_Project_SDO_Full.jpg"],
+        left: ["leftPanelCard", "Monitoring_Progress_Project_SDO_Kiri.jpg"],
+        right: ["rightPanelCard", "Monitoring_Progress_Project_SDO_Kanan.jpg"]
+      };
+      const [elId, filename] = map[target] || map.both;
+      try {
+        const canvas = await html2canvas($(elId), { scale: 2, backgroundColor: "#f1f5f9", useCORS: true });
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = canvas.toDataURL("image/jpeg", 0.95);
+        link.click();
+      } catch (err) {
+        console.error(err);
+        toast("Gagal export gambar: " + err.message, "err");
+      }
+    }
+
+    // =====================================================================
+    // EVENT
+    // =====================================================================
+    function onProjectClick(e) {
+      const row = e.target.closest("[data-project-id]");
+      if (row) openEditModal(row.getAttribute("data-project-id"));
+    }
+    $("leftProjectsContainer").addEventListener("click", onProjectClick);
+    $("rightProjectsContainer").addEventListener("click", onProjectClick);
+
+    $("toggleWaBadge").addEventListener("change", () => renderAll());
+    $("maxMonthFilter").addEventListener("change", e => updateMaxTimelineMonth(e.target.value));
+    $("btnAdd").addEventListener("click", openAddProjectModal);
+    $("btnRefresh").addEventListener("click", () => { setBadge("⏳ Memuat data terbaru...", "blue"); pull(); });
+    document.querySelectorAll("[data-export]").forEach(btn =>
+      btn.addEventListener("click", () => exportJPG(btn.getAttribute("data-export"))));
+
+    $("editModal").addEventListener("click", e => {
+      if (e.target === $("editModal")) requestCloseModal();
+      const action = e.target.closest("[data-action]")?.getAttribute("data-action");
+      if (action === "close") requestCloseModal();
+      if (action === "delete") deleteCurrentProject();
+    });
+    $("editForm").addEventListener("submit", e => { e.preventDefault(); saveModal(); });
+    $("editForm").addEventListener("input", updateModalIndicators);
+    $("editForm").addEventListener("change", updateModalIndicators);
+
+    document.addEventListener("keydown", e => {
+      if (!modal.open) return;
+      if (e.key === "Escape") { e.preventDefault(); requestCloseModal(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveModal(); }
+    });
+
+    window.addEventListener("beforeunload", e => {
+      if ((modal.open && dirtyFields().length) || pendingWrites > 0) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    // Sinkron berkala; berhenti saat tab tidak dilihat, langsung tarik saat kembali dibuka
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
+    setInterval(() => { if (!document.hidden) pull(); }, POLL_INTERVAL_MS);
+
+    // =====================================================================
+    // INIT
+    // =====================================================================
+    buildBarSections();
     renderAll();
-    pullFromGoogleSheetsAuto();
-    setInterval(pullFromGoogleSheetsAuto, 4000);
+    if (projects.length) setBadge("⏳ Menampilkan data cache, menyinkronkan...", "amber");
+    pull();
   </script>
 </body>
 </html>
